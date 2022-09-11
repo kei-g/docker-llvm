@@ -4,6 +4,7 @@ FROM snowstep/apt-fast:latest
 ARG LLVM_VERSION=16
 RUN DEBIAN_FRONTEND=noninteractive \
   && apt-fast update \
+  && apt-fast upgrade -yqq \
   && apt-fast install --no-install-recommends -y \
     gnupg \
   && keyname=llvm-snapshot.gpg.key \
@@ -23,6 +24,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
     libunwind-dev \
     lld \
     lldb \
+  && apt-fast clean \
   && rm -fr /var/lib/apt/lists/* \
   && echo "[ -d /usr/lib/llvm-${LLVM_VERSION}/bin ] && export PATH=/usr/lib/llvm-${LLVM_VERSION}/bin:\$PATH" \
     | tee -a /root/.bashrc \
