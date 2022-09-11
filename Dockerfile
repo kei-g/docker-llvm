@@ -1,7 +1,7 @@
 FROM snowstep/apt-fast:latest
 
 # Install the latest LLVM
-ARG LLVM_VERSION=15
+ARG LLVM_VERSION=16
 RUN DEBIAN_FRONTEND=noninteractive \
   && apt-fast update \
   && apt-fast install --no-install-recommends -y \
