@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "DavidAnson.vscode-markdownlint",
+    "EditorConfig.EditorConfig",
+    "codezombiech.gitignore",
+    "streetsidesoftware.code-spell-checker",
+  ],
+}
