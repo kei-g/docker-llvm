@@ -1,4 +1,4 @@
-FROM snowstep/apt-fast:latest
+FROM snowstep/apt-fast:bullseye
 
 # Install the latest LLVM
 ARG LLVM_VERSION=16

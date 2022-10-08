@@ -1,0 +1,28 @@
+FROM snowstep/apt-fast:jammy
+
+COPY assets/llvm-snapshot.gpg /etc/apt/trusted.gpg.d/
+
+# Install the latest LLVM
+ARG LLVM_VERSION=16
+RUN DEBIAN_FRONTEND=noninteractive \
+  && distro=jammy \
+  && listpath=/etc/apt/sources.list.d/llvm-toolchain.list \
+  && llvm=apt.llvm.org \
+  && printf 'deb http://%s/%s/ llvm-toolchain-%s main\n' $llvm $distro $distro > $listpath \
+  && printf 'deb-src http://%s/%s/ llvm-toolchain-%s main\n' $llvm $distro $distro >> $listpath \
+  && apt-fast update \
+  && apt-fast upgrade -yqq \
+  && apt-fast install --no-install-recommends -y \
+    clang \
+    clang-format \
+    clang-tidy \
+    clang-tools \
+    clangd \
+    libunwind-dev \
+    lld \
+    lldb \
+  && apt-fast clean \
+  && rm -fr /var/lib/apt/lists/* \
+  && echo "[ -d /usr/lib/llvm-${LLVM_VERSION}/bin ] && export PATH=/usr/lib/llvm-${LLVM_VERSION}/bin:\$PATH" \
+    | tee -a /root/.bashrc \
+    > /root/.profile
