@@ -18,7 +18,7 @@ jobs:
           echo "::set-output name=MINOR_VERSION::$(echo $version | cut -d'.' -f-2)"
           echo "::set-output name=VERSION::$version"
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v2
       - name: Cache Docker layers
         uses: actions/cache@v3
         with:
