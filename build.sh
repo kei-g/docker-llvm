@@ -12,5 +12,5 @@ for dist in $(ls docker/linux | xargs); do
 	docker pull $base_image
 	cp "$docker_file" ./
 	docker build -t "snowstep/llvm:$dist" .
-	rm -f "$docker_file"
+	rm -f Dockerfile
 done
