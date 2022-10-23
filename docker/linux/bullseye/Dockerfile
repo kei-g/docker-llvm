@@ -25,7 +25,5 @@ RUN DEBIAN_FRONTEND=noninteractive \
     lld \
     lldb \
   && apt-fast clean \
-  && rm -fr /var/lib/apt/lists/* \
-  && echo "[ -d /usr/lib/llvm-${LLVM_VERSION}/bin ] && export PATH=/usr/lib/llvm-${LLVM_VERSION}/bin:\$PATH" \
-    | tee -a /root/.bashrc \
-    > /root/.profile
+  && rm -fr /var/lib/apt/lists/*
+ENV PATH /usr/lib/llvm-${LLVM_VERSION}/bin:$PATH
