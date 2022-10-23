@@ -1,18 +1,18 @@
 #!/bin/bash
 
 repo="$1"
-[ -z "$repo" ] && {
+[[ -z "$repo" ]] && {
 	echo "$0 repository [short-description] ..." >&2
 	exit 1
 }
 
-readme="$(cat README.md)"
-[ -z "$readme" ] && {
+readme=$(< README.md)
+[[ -z "$readme" ]] && {
 	echo "$0 README.md is empty" >&2
 	exit 1
 }
 
-desc="$(echo "$2" | head -n1)"
+desc=$(echo "$2" | { read line && echo "$line"; })
 fulldesc="${readme//$'\n'/$'\\n'}"
 hub=https://hub.docker.com/v2
 
