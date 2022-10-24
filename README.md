@@ -2,9 +2,9 @@
 
 `docker-llvm` - Debian/Ubuntu with the latest [llvm][llvm-url] installed.
 
-[![GitHub CI (Main)][github-main-image]][github-main-url]
+This image depends on [![`snowstep/apt-fast`][dockerhub-apt-fast-image]][dockerhub-apt-fast-url]
 
-This image is based on [![`snowstep/apt-fast`][dockerhub-apt-fast-image]][dockerhub-apt-fast-url].
+[![GitHub CI (Main)][github-main-image]][github-main-url]
 
 [docker-image]:https://img.shields.io/docker/v/snowstep/llvm?logo=docker
 [docker-url]:https://hub.docker.com/r/snowstep/llvm
