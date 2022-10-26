@@ -1,7 +1,6 @@
 FROM snowstep/apt-fast:bullseye
 
 # Install the latest LLVM
-ARG LLVM_VERSION=16
 RUN DEBIAN_FRONTEND=noninteractive \
   && apt-fast update \
   && apt-fast upgrade -yqq \
@@ -26,4 +25,3 @@ RUN DEBIAN_FRONTEND=noninteractive \
     lldb \
   && apt-fast clean \
   && rm -fr /var/lib/apt/lists/*
-ENV PATH /usr/lib/llvm-${LLVM_VERSION}/bin:$PATH

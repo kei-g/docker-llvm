@@ -3,7 +3,6 @@ FROM snowstep/apt-fast:jammy
 COPY assets/llvm-snapshot.gpg /etc/apt/trusted.gpg.d/
 
 # Install the latest LLVM
-ARG LLVM_VERSION=16
 RUN DEBIAN_FRONTEND=noninteractive \
   && distro=jammy \
   && listpath=/etc/apt/sources.list.d/llvm-toolchain.list \
@@ -22,4 +21,3 @@ RUN DEBIAN_FRONTEND=noninteractive \
     lldb \
   && apt-fast clean \
   && rm -fr /var/lib/apt/lists/*
-ENV PATH /usr/lib/llvm-${LLVM_VERSION}/bin:$PATH
