@@ -16,7 +16,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
     clang \
     clang-format \
     clang-tidy \
-    clang-tools \
     clangd \
     libunwind-dev \
     lld \
