@@ -1,0 +1,69 @@
+jobs:
+  dockerhub:
+    name: See the latest snowstep/apt-fast on DockerHub
+    outputs:
+      OUTDATED: ${{ steps.dockerhub-llvm.outputs.OUTDATED }}
+    runs-on: ubuntu-latest
+    steps:
+      - id: dockerhub-llvm
+        name: Compare the latest updates between snowstep/apt-fast and snowstep/llvm
+        run: |
+          api=https://hub.docker.com/v2/namespaces/snowstep/repositories
+          for repo in apt-fast llvm; do
+            last=$(curl -s $api/$repo/tags | jq -cr '.results[]|select(.name=="latest").last_updated')
+            printf '%s=%s\n' $repo $last >&2
+            date --date=$last "+%s"
+          done | xargs | {
+            read latest_apt_fast latest_llvm
+            printf 'apt_fast=%s\n' $latest_apt_fast >&2
+            printf 'llvm=%s\n' $latest_llvm >&2
+            [[ $latest_apt_fast -lt $latest_llvm ]] \
+            && printf 'OUTDATED=false\n' \
+            || printf 'OUTDATED=true\n'
+          } | tee -a $GITHUB_OUTPUT
+        shell: bash
+  llvm:
+    container:
+      image: snowstep/llvm
+    name: See the latest LLVM release
+    outputs:
+      OUTDATED: ${{ steps.llvm.outputs.OUTDATED }}
+    runs-on: ubuntu-latest
+    steps:
+      - id: llvm
+        name: Compare currently installed version with the latest llvm
+        run: |
+          local=$(clang --version | grep version | awk '{{ print $4 }}' | grep -E '[0-9]{14}' -o | head -n1)
+          aria2c --quiet https://apt.llvm.org/jammy/dists/llvm-toolchain-jammy/main/binary-amd64/Packages.gz
+          declare -A dep
+          declare -A ver
+          name=
+          while read line; do
+            key=${line%%:\ *}
+            value=${line#*:\ }
+            case $key in
+              Depends) dep[$name]=${value%%\ *};;
+              Package) name=$value;;
+              Version) ver[$name]=$(printf '%s\n' $value | grep -E '[0-9]{14}' -o | head -n1);;
+            esac
+          done <<< $(gzip -cd Packages.gz)
+          latest=${ver[${dep["clang"]}]}
+          printf 'current=%s\n' $local >&2
+          printf 'latest=%s\n' $latest >&2
+          [[ $local < $latest ]] \
+              && printf 'OUTDATED=true\n' \
+              || printf 'OUTDATED=false\n' \
+            | tee -a $GITHUB_OUTPUT
+        shell: bash
+  publish-if-outdated:
+    name: Publish if outdated
+    needs:
+      - dockerhub
+      - llvm
+    uses: ./.github/workflows/publish.yml
+    with:
+      OUTDATED: ${{ (needs.dockerhub.outputs.OUTDATED == 'true' || needs.llvm.outputs.OUTDATED == 'true') }}
+name: Check updates
+on:
+  schedule:
+    - cron: '0 */6 * * *'
