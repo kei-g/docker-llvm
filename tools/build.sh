@@ -9,7 +9,6 @@ IMAGES=$(docker images --filter=dangling=true --format="{{.ID}}" | xargs)
 for dist in $(ls docker/linux | xargs); do
 	docker_file="docker/linux/$dist/Dockerfile"
 	base_image=$(head -n1 "$docker_file" | cut -d' ' -f2)
-	docker pull $base_image
 	cp "$docker_file" ./
 	docker build -t "snowstep/llvm:$dist" .
 	rm -f Dockerfile
