@@ -36,11 +36,27 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ matrix.dist }}
             ${{ steps.meta.outputs.tags }}
+      - id: overview
+        name: Load README
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('node:fs')
+            fs.readFile('README.md', {}, (err, data) => {
+              if (err)
+                core.setFailed(err.message)
+              else
+                core.setOutput('content', data.toString())
+            })
       - name: Patch the description
-        run: |
-          DOCKERHUB_PASSWORD="${{ secrets.DOCKERHUB_PASSWORD }}" \
-          DOCKERHUB_USERNAME="${{ secrets.DOCKERHUB_USERNAME }}" \
-          tools/patch-dockerhub.sh ${{ env.IMAGE_NAME }} "Debian/Ubuntu with the latest LLVM installed."
+        uses: kei-g/dockerhub-patch@main
+        with:
+          description: Debian/Ubuntu with the latest LLVM installed.
+          overview: |
+            ${{ steps.overview.outputs.content }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          repo: ${{ env.IMAGE_NAME }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
     strategy:
       matrix:
         dist:
