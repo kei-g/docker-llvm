@@ -60,6 +60,9 @@ jobs:
     needs:
       - dockerhub
       - llvm
+    secrets:
+      DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     uses: ./.github/workflows/publish.yml
     with:
       OUTDATED: ${{ (needs.dockerhub.outputs.OUTDATED == 'true' || needs.llvm.outputs.OUTDATED == 'true') }}

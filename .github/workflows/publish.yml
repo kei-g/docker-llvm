@@ -99,3 +99,8 @@ on:
         description: 'Is necessary for update'
         required: true
         type: string
+    secrets:
+      DOCKERHUB_PASSWORD:
+        required: true
+      DOCKERHUB_USERNAME:
+        required: true
