@@ -2,7 +2,7 @@ env:
   IMAGE_NAME: llvm
 jobs:
   debian:
-    if: ${{ github.event.inputs.OUTDATED == 'true' }}
+    if: ${{ inputs.OUTDATED == 'true' }}
     name: debian:${{ matrix.dist }}
     needs:
       - ubuntu
@@ -46,7 +46,7 @@ jobs:
         dist:
           - bullseye
   ubuntu:
-    if: ${{ github.event.inputs.OUTDATED == 'true' }}
+    if: ${{ inputs.OUTDATED == 'true' }}
     name: ubuntu:${{ matrix.dist }}
     runs-on: ubuntu-latest
     steps:
