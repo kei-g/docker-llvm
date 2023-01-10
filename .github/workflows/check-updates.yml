@@ -24,7 +24,7 @@ jobs:
         shell: bash
   llvm:
     container:
-      image: snowstep/llvm
+      image: snowstep/llvm@latest
     name: See the latest LLVM release
     outputs:
       OUTDATED: ${{ steps.llvm.outputs.OUTDATED }}
