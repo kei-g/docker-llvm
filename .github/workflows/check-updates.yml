@@ -1,4 +1,19 @@
 jobs:
+  digest:
+    name: Acquire digest of the latest image
+    outputs:
+      llvm: ${{ steps.llvm.outputs.digest }}
+    runs-on: ubuntu-latest
+    steps:
+      - id: llvm
+        name: Acquire digest of the latest snowstep/llvm
+        run: |
+          api=https://hub.docker.com/v2/namespaces/snowstep/repositories
+          curl -s $api/llvm/tags | jq -cr '.results[]|select(.name=="latest").images[].digest' | cut -d':' -f2) | while read digest; do
+            printf 'digest=%s\n' $digest | tee -a $GITHUB_OUTPUT
+            break
+          done
+        shell: bash
   dockerhub:
     name: See the latest snowstep/apt-fast on DockerHub
     outputs:
@@ -24,8 +39,10 @@ jobs:
         shell: bash
   llvm:
     container:
-      image: snowstep/llvm@latest
+      image: snowstep/llvm@${{ needs.digest.outputs.llvm }}
     name: See the latest LLVM release
+    needs:
+      - digest
     outputs:
       OUTDATED: ${{ steps.llvm.outputs.OUTDATED }}
     runs-on: ubuntu-latest
