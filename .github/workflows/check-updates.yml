@@ -9,7 +9,7 @@ jobs:
         name: Acquire digest of the latest snowstep/llvm
         run: |
           api=https://hub.docker.com/v2/namespaces/snowstep/repositories
-          curl -s $api/llvm/tags | jq -cr '.results[]|select(.name=="latest").images[].digest' | cut -d':' -f2) | while read digest; do
+          curl -s $api/llvm/tags | jq -cr '.results[]|select(.name=="latest").images[].digest' | cut -d':' -f2 | while read digest; do
             printf 'digest=%s\n' $digest | tee -a $GITHUB_OUTPUT
             break
           done
