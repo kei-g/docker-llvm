@@ -39,7 +39,7 @@ jobs:
         shell: bash
   llvm:
     container:
-      image: snowstep/llvm@${{ needs.digest.outputs.llvm }}
+      image: ${{ needs.digest.outputs.llvm }}
     name: See the latest LLVM release
     needs:
       - digest
