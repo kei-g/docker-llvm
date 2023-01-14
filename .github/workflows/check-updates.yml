@@ -48,7 +48,7 @@ jobs:
       - id: llvm
         name: Compare currently installed version with the latest llvm
         run: |
-          local=$(clang --version | grep version | awk '{{ print $4 }}' | grep -E '[0-9]{14}' -o | head -n1)
+          local=$(clang --version | grep version | grep -E '[0-9]{14}' -o | head -n1)
           aria2c --quiet https://apt.llvm.org/jammy/dists/llvm-toolchain-jammy/main/binary-amd64/Packages.gz
           declare -A dep
           declare -A ver
