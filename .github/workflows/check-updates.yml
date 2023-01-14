@@ -31,8 +31,8 @@ jobs:
             printf 'apt_fast=%s\n' $latest_apt_fast >&2
             printf 'llvm=%s\n' $latest_llvm >&2
             [[ $latest_apt_fast -lt $latest_llvm ]] \
-            && printf 'OUTDATED=false\n' \
-            || printf 'OUTDATED=true\n'
+              && printf 'OUTDATED=false\n' \
+              || printf 'OUTDATED=true\n'
           } | tee -a $GITHUB_OUTPUT
         shell: bash
   llvm:
