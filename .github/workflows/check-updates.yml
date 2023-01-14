@@ -65,10 +65,10 @@ jobs:
           latest=${ver[${dep["clang"]}]}
           printf 'current=%s\n' $local >&2
           printf 'latest=%s\n' $latest >&2
-          [[ $local < $latest ]] \
-              && printf 'OUTDATED=true\n' \
-              || printf 'OUTDATED=false\n' \
-            | tee -a $GITHUB_OUTPUT
+          printf 'OUTDATED=%s\n' $([[ $local < $latest ]] \
+            && printf 'true' \
+            || printf 'false' \
+          ) | tee -a $GITHUB_OUTPUT
         shell: bash
   publish-if-outdated:
     name: Publish if outdated
