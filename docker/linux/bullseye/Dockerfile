@@ -20,7 +20,6 @@ RUN DEBIAN_FRONTEND=noninteractive \
     clangd \
     libc++-dev \
     libc++abi-dev \
-    libunwind-dev \
     lld \
     lldb \
   && apt-fast clean \
