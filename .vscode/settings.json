@@ -2,4 +2,7 @@
   "files.associations": {
     "**/LICENSE": "plaintext",
   },
+  "markdownlint.config": {
+    "MD041": false,
+  },
 }

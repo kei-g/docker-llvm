@@ -1,6 +1,8 @@
-# docker-llvm [![github][github-repo-image]][github-repo-url] [![license][license-image]][license-url] [![docker][docker-image]][docker-url]
+[![GitHub][github-repo-image]][github-repo-url] [![DockerHub][docker-image]][docker-url]
 
-`docker-llvm` - Debian/Ubuntu with the latest [llvm][llvm-url] installed.
+# docker-llvm  [![license][license-image]][license-url]
+
+[`docker-llvm`][github-repo-url] - Debian/Ubuntu with the latest [llvm][llvm-url] installed.
 
 This image depends on [![`snowstep/apt-fast`][dockerhub-apt-fast-image]][dockerhub-apt-fast-url]
 
