@@ -51,6 +51,7 @@ jobs:
         name: Compare currently installed version with the latest llvm
         run: |
           local=$(clang --version | grep version | grep -E '[0-9]{14}' -o | head -n1)
+          printf 'clang version (installed): %s\n' $local >&2
           codename=$(grep -e '^VERSION_CODENAME=' /etc/os-release)
           codename=${codename#*=}
           printf 'codename=%s\n' $codename >&2
@@ -69,8 +70,7 @@ jobs:
             esac
           done <<< $(gzip -cd Packages.gz)
           latest=${ver[${dep["clang"]}]}
-          printf 'current=%s\n' $local >&2
-          printf 'latest=%s\n' $latest >&2
+          printf 'clang version (latest): %s\n' $latest >&2
           boolean=(true false)
           outdated=$([[ $latest -gt $local ]]; echo $?)
           echo OUTDATED=${boolean[$outdated]} | tee -a $GITHUB_OUTPUT
