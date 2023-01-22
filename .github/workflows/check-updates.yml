@@ -51,7 +51,11 @@ jobs:
         name: Compare currently installed version with the latest llvm
         run: |
           local=$(clang --version | grep version | grep -E '[0-9]{14}' -o | head -n1)
-          aria2c --quiet https://apt.llvm.org/jammy/dists/llvm-toolchain-jammy/main/binary-amd64/Packages.gz
+          codename=$(grep -e '^VERSION_CODENAME=' /etc/os-release)
+          codename=${codename#*=}
+          printf 'codename=%s\n' $codename >&2
+          repo=https://apt.llvm.org/$codename/dists/llvm-toolchain-$codename
+          aria2c --quiet $repo/main/binary-amd64/Packages.gz
           declare -A dep
           declare -A ver
           name=
