@@ -2,7 +2,6 @@ env:
   IMAGE_NAME: llvm
 jobs:
   debian:
-    if: ${{ inputs.OUTDATED == 'true' }}
     name: debian:${{ matrix.dist }}
     needs:
       - ubuntu
@@ -12,13 +11,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 1
-      - id: meta
-        name: Docker metadata
-        uses: docker/metadata-action@v4
-        with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=schedule,pattern={{date 'YYYYMMDDHHmmss'}}
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: Copy Dockerfile
@@ -28,6 +20,10 @@ jobs:
         with:
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
           username: ${{ secrets.DOCKERHUB_USERNAME }}
+      - id: current-time
+        name: Format the current time
+        run: |
+          printf 'value=%s\n' $(date "+%Y%m%d%H%M%S") | tee -a $GITHUB_OUTPUT
       - name: Run Buildx and Push it to DockerHub
         uses: docker/build-push-action@v3
         with:
@@ -36,7 +32,7 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ matrix.dist }}
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
-            ${{ steps.meta.outputs.tags }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.current-time.outputs.value }}
       - id: overview
         name: Load README
         uses: actions/github-script@v6
@@ -63,7 +59,6 @@ jobs:
         dist:
           - bullseye
   ubuntu:
-    if: ${{ inputs.OUTDATED == 'true' }}
     name: ubuntu:${{ matrix.dist }}
     runs-on: ubuntu-latest
     steps:
@@ -95,13 +90,9 @@ jobs:
 name: Publish
 on:
   workflow_call:
-    inputs:
-      OUTDATED:
-        description: 'Is necessary for update'
-        required: true
-        type: string
     secrets:
       DOCKERHUB_PASSWORD:
         required: true
       DOCKERHUB_USERNAME:
         required: true
+  workflow_dispatch:

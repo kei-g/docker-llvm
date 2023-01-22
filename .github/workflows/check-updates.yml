@@ -8,8 +8,10 @@ jobs:
       - id: llvm
         name: Acquire digest of the latest snowstep/llvm
         run: |
-          api=https://hub.docker.com/v2/namespaces/snowstep/repositories
-          digest=$(curl -s $api/llvm/tags | jq -cr '[.results[]|select(.name=="latest").images[]]|max_by(.last_pushed).digest')
+          digest=$(
+            curl -s https://hub.docker.com/v2/namespaces/snowstep/repositories/llvm/tags \
+              | jq -cr '[.results[]|select(.name=="latest").images[]|select(.architecture=="amd64")]|max_by(.last_pushed).digest'
+          )
           printf 'digest=%s\n' $digest | tee -a $GITHUB_OUTPUT
         shell: bash
   dockerhub:
@@ -30,9 +32,9 @@ jobs:
             read latest_apt_fast latest_llvm
             printf 'apt_fast=%s\n' $latest_apt_fast >&2
             printf 'llvm=%s\n' $latest_llvm >&2
-            [[ $latest_apt_fast -lt $latest_llvm ]] \
-              && printf 'OUTDATED=false\n' \
-              || printf 'OUTDATED=true\n'
+            boolean=(true false)
+            outdated=$([[ $latest_apt_fast -gt $latest_llvm ]]; echo $?)
+            echo OUTDATED=${boolean[$outdated]}
           } | tee -a $GITHUB_OUTPUT
         shell: bash
   llvm:
@@ -65,12 +67,12 @@ jobs:
           latest=${ver[${dep["clang"]}]}
           printf 'current=%s\n' $local >&2
           printf 'latest=%s\n' $latest >&2
-          printf 'OUTDATED=%s\n' $([[ $local < $latest ]] \
-            && printf 'true' \
-            || printf 'false' \
-          ) | tee -a $GITHUB_OUTPUT
+          boolean=(true false)
+          outdated=$([[ $latest -gt $local ]]; echo $?)
+          echo OUTDATED=${boolean[$outdated]} | tee -a $GITHUB_OUTPUT
         shell: bash
   publish-if-outdated:
+    if: ${{ needs.dockerhub.outputs.OUTDATED == 'true' || needs.llvm.outputs.OUTDATED == 'true' }}
     name: Publish if outdated
     needs:
       - dockerhub
@@ -79,9 +81,8 @@ jobs:
       DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     uses: ./.github/workflows/publish.yml
-    with:
-      OUTDATED: ${{ (needs.dockerhub.outputs.OUTDATED == 'true' || needs.llvm.outputs.OUTDATED == 'true') }}
 name: Check updates
 on:
   schedule:
     - cron: '0 */6 * * *'
+  workflow_dispatch:
