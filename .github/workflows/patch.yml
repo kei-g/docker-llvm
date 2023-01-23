@@ -1,0 +1,28 @@
+jobs:
+  update:
+    name: Update the description on DockerHub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Patch the description
+        uses: kei-g/dockerhub-patch@main
+        with:
+          description: Debian/Ubuntu with the latest LLVM installed.
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          repo: llvm
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+name: Update the description on DockerHub
+on:
+  push:
+    paths:
+      - README.md
+  workflow_call:
+    secrets:
+      DOCKERHUB_PASSWORD:
+        required: true
+      DOCKERHUB_USERNAME:
+        required: true
+  workflow_dispatch:
