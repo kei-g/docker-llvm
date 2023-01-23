@@ -13,7 +13,13 @@ RUN DEBIAN_FRONTEND=noninteractive \
   && gpg --import --keyring=$keypath --no-default-keyring /tmp/$keyname \
   && rm -f /tmp/$keyname \
   && distro=bullseye \
-  && printf 'deb [signed-by=%s] http://%s/%s/ llvm-toolchain-%s main\n' $keypath $llvm $distro $distro > /etc/apt/sources.list.d/llvm-toolchain.list \
+  && printf \
+      'deb [signed-by=%s] http://%s/%s/ llvm-toolchain-%s main\n' \
+      $keypath \
+      $llvm \
+      $distro \
+      $distro \
+    > /etc/apt/sources.list.d/llvm-toolchain.list \
   && apt-fast update \
   && apt-fast install --no-install-recommends -y \
     clang \

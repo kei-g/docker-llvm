@@ -7,8 +7,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
   && distro=focal \
   && listpath=/etc/apt/sources.list.d/llvm-toolchain.list \
   && llvm=apt.llvm.org \
-  && printf 'deb http://%s/%s/ llvm-toolchain-%s main\n' $llvm $distro $distro > $listpath \
-  && printf 'deb-src http://%s/%s/ llvm-toolchain-%s main\n' $llvm $distro $distro >> $listpath \
+  && for what in deb deb-src; do \
+      echo $what http://$llvm/$distro/ llvm-toolchain-$distro main; \
+    done > $listpath \
   && apt-fast update \
   && apt-fast upgrade -yqq \
   && apt-fast install --no-install-recommends -y \
