@@ -23,6 +23,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
   && apt-fast update \
   && apt-fast install --no-install-recommends -y \
     clang \
+    clang-format \
+    clang-tidy \
     clangd \
     libc++-dev \
     libc++abi-dev \
