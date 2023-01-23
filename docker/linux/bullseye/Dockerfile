@@ -28,6 +28,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
     clangd \
     libc++-dev \
     libc++abi-dev \
+    libunwind-${MAJOR_VERSION:-16} \
     lld \
     lldb \
   && apt-fast clean \

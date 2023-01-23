@@ -44,6 +44,7 @@ jobs:
     needs:
       - digest
     outputs:
+      MAJOR_VERSION: ${{ steps.llvm.outputs.MAJOR_VERSION }}
       OUTDATED: ${{ steps.llvm.outputs.OUTDATED }}
     runs-on: ubuntu-latest
     steps:
@@ -66,10 +67,11 @@ jobs:
             case $key in
               Depends) dep[$name]=${value%%\ *};;
               Package) name=$value;;
-              Version) ver[$name]=$(printf '%s\n' $value | grep -E '[0-9]{14}' -o | head -n1);;
+              Version) ver[$name]=$(grep -E '[0-9]{14}' -o <<< $value | head -n1);;
             esac
           done <<< $(gzip -cd Packages.gz)
-          latest=${ver[${dep["clang"]}]}
+          echo MAJOR_VERSION=${dep[clang]#*-} | tee -a $GITHUB_OUTPUT
+          latest=${ver[${dep[clang]}]}
           printf 'clang version (latest): %s\n' $latest >&2
           boolean=(true false)
           outdated=$([[ $latest -gt $local ]]; echo $?)
@@ -85,6 +87,8 @@ jobs:
       DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     uses: ./.github/workflows/publish.yml
+    with:
+      MAJOR_VERSION: ${{ needs.llvm.outputs.MAJOR_VERSION }}
 name: Check updates
 on:
   schedule:

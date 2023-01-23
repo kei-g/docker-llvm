@@ -27,6 +27,8 @@ jobs:
       - name: Run Buildx and Push it to DockerHub
         uses: docker/build-push-action@v3
         with:
+          build-args: |
+            MAJOR_VERSION=${{ inputs.MAJOR_VERSION }}
           context: .
           push: true
           tags: |
@@ -78,6 +80,8 @@ jobs:
       - name: Run Buildx and Push it to DockerHub
         uses: docker/build-push-action@v3
         with:
+          build-args: |
+            MAJOR_VERSION=${{ inputs.MAJOR_VERSION }}
           context: .
           push: true
           tags: |
@@ -90,9 +94,20 @@ jobs:
 name: Publish
 on:
   workflow_call:
+    inputs:
+      MAJOR_VERSION:
+        required: true
+        type: string
     secrets:
       DOCKERHUB_PASSWORD:
         required: true
       DOCKERHUB_USERNAME:
         required: true
   workflow_dispatch:
+    inputs:
+      MAJOR_VERSION:
+        default: '16'
+        description: >
+          Major version of the latest llvm.
+        required: true
+        type: string
