@@ -6,20 +6,25 @@ RUN DEBIAN_FRONTEND=noninteractive \
   && apt-fast upgrade -yqq \
   && apt-fast install --no-install-recommends -y \
     gnupg \
-  && keyname=llvm-snapshot.gpg.key \
-  && keypath=/usr/share/keyrings/llvm-snapshot-keyring.gpg \
+  && keyname=llvm-snapshot.gpg \
+  && keydir=/etc/apt/keyrings \
   && llvm=apt.llvm.org \
-  && aria2c -d /tmp https://$llvm/$keyname \
-  && gpg --import --keyring=$keypath --no-default-keyring /tmp/$keyname \
-  && rm -f /tmp/$keyname \
+  && aria2c https://$llvm/$keyname.key \
+  && gpg --import $keyname.key \
+  && rm -f $keyname \
+  && [ -d $keydir ] \
+    || mkdir -pv $keydir \
+  && gpg --export > /etc/apt/keyrings/$keyname \
   && distro=bullseye \
-  && printf \
-      'deb [signed-by=%s] http://%s/%s/ llvm-toolchain-%s main\n' \
-      $keypath \
-      $llvm \
-      $distro \
-      $distro \
-    > /etc/apt/sources.list.d/llvm-toolchain.list \
+  && for what in deb deb-src; do \
+      printf \
+        '%s [signed-by=%s] http://%s/%s/ llvm-toolchain-%s main\n' \
+          $what \
+          $keydir/$keyname \
+          $llvm \
+          $distro \
+          $distro; \
+    done > /etc/apt/sources.list.d/llvm-toolchain.list \
   && apt-fast update \
   && apt-fast install --no-install-recommends -y \
     clang \
