@@ -25,7 +25,7 @@ jobs:
         run: |
           printf 'value=%s\n' $(date "+%Y%m%d%H%M%S") | tee -a $GITHUB_OUTPUT
       - name: Run Buildx and Push it to DockerHub
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           build-args: |
             MAJOR_VERSION=${{ inputs.MAJOR_VERSION }}
@@ -65,7 +65,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
           username: ${{ secrets.DOCKERHUB_USERNAME }}
       - name: Run Buildx and Push it to DockerHub
-        uses: docker/build-push-action@v3
+        uses: docker/build-push-action@v4
         with:
           build-args: |
             MAJOR_VERSION=${{ inputs.MAJOR_VERSION }}
