@@ -1,5 +1,7 @@
 FROM snowstep/apt-fast:jammy
 
+ARG MAJOR_VERSION
+
 # Install the latest LLVM
 RUN DEBIAN_FRONTEND=noninteractive \
   && apt-fast update \

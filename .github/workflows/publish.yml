@@ -93,7 +93,7 @@ on:
   workflow_dispatch:
     inputs:
       MAJOR_VERSION:
-        default: '16'
+        default: '17'
         description: >
           Major version of the latest llvm.
         required: true

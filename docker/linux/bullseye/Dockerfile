@@ -1,5 +1,7 @@
 FROM snowstep/apt-fast:bullseye
 
+ARG MAJOR_VERSION
+
 # Install the latest LLVM
 RUN DEBIAN_FRONTEND=noninteractive \
   && apt-fast update \
@@ -33,7 +35,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
     clangd \
     libc++-dev \
     libc++abi-dev \
-    libunwind-${MAJOR_VERSION:-16} \
+    libunwind-${MAJOR_VERSION:-17} \
     lld \
     lldb \
   && apt-fast clean \
