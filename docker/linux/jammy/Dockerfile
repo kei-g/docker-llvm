@@ -16,7 +16,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
   && rm -f $keyname \
   && [ -d $keydir ] \
     || mkdir -pv $keydir \
-  && gpg --export > /etc/apt/keyrings/$keyname \
+  && gpg --export > $keydir/$keyname \
   && distro=jammy \
   && for what in deb deb-src; do \
       printf \
