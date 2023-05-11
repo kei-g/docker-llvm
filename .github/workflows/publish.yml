@@ -78,6 +78,7 @@ jobs:
         dist:
           - focal
           - jammy
+          - lunar
 name: Publish
 on:
   workflow_call:
