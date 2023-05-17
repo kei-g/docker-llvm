@@ -92,5 +92,5 @@ jobs:
 name: Check updates
 on:
   schedule:
-    - cron: '15 */12 * * *'
+    - cron: '30 3,15 * * *'
   workflow_dispatch:
