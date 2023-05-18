@@ -34,11 +34,12 @@ RUN DEBIAN_FRONTEND=noninteractive \
     clang-format \
     clang-tidy \
     clangd \
-    libc++-${MAJOR_VERSION:-17}-dev \
-    libc++abi-${MAJOR_VERSION:-17}-dev \
     libunwind-dev \
     lld \
     lldb \
+  && apt-fast install --no-install-recommends -y \
+    libc++-${MAJOR_VERSION:-17}-dev \
+    libc++abi-${MAJOR_VERSION:-17}-dev \
   && apt-fast clean \
   && rm -fr /var/lib/apt/lists/* \
   && for name in ar as nm objcopy objdump otool ranlib readelf strip windres; do \
