@@ -35,6 +35,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
     clangd \
     libc++-dev \
     libc++abi-dev \
+    libclang-${MAJOR_VERSION:-17}-dev \
+    libclang-rt-${MAJOR_VERSION:-17}-dev \
     libunwind-${MAJOR_VERSION:-17} \
     lld \
     lldb \
