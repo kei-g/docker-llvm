@@ -42,8 +42,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
     libc++abi-${MAJOR_VERSION:-17}-dev \
     libclang-${MAJOR_VERSION:-17}-dev \
     libclang-rt-${MAJOR_VERSION:-17}-dev \
+    llvm-${MAJOR_VERSION:-17}-tools \
   && apt-fast clean \
   && rm -fr /var/lib/apt/lists/* \
-  && for name in ar as nm objcopy objdump otool ranlib readelf strip windres; do \
+  && for name in ar as cov nm objcopy objdump otool profdata ranlib readelf strip windres; do \
       ln -fs llvm-$name-${MAJOR_VERSION:-17} /usr/bin/llvm-$name; \
     done
