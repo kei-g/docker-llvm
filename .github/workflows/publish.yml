@@ -1,10 +1,10 @@
 env:
   IMAGE_NAME: llvm
 jobs:
-  debian:
-    name: debian:${{ matrix.dist }}
+  latest:
+    name: debian:latest
     needs:
-      - ubuntu
+      - push
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -14,7 +14,7 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: Copy Dockerfile
-        run: cp docker/linux/${{ matrix.dist }}/Dockerfile ./
+        run: cp docker/linux/bookworm/Dockerfile ./
       - name: Login to DockerHub
         uses: docker/login-action@v2
         with:
@@ -32,23 +32,19 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ matrix.dist }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:bookworm
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.current-time.outputs.value }}
-    strategy:
-      matrix:
-        dist:
-          - bullseye
   patch:
     name: Patch the description to DockerHub
     needs:
-      - debian
+      - latest
     secrets:
       DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     uses: ./.github/workflows/patch.yml
-  ubuntu:
-    name: ubuntu:${{ matrix.dist }}
+  push:
+    name: ${{ matrix.dist }}:${{ matrix.name }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -58,7 +54,7 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: Copy Dockerfile
-        run: cp docker/linux/${{ matrix.dist }}/Dockerfile ./
+        run: cp docker/linux/${{ matrix.name }}/Dockerfile ./
       - name: Login to DockerHub
         uses: docker/login-action@v2
         with:
@@ -72,13 +68,18 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ matrix.dist }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ matrix.name }}
     strategy:
       matrix:
-        dist:
-          - focal
-          - jammy
-          - lunar
+        include:
+          - dist: debian
+            name: bullseye
+          - dist: ubuntu
+            name: focal
+          - dist: ubuntu
+            name: jammy
+          - dist: ubuntu
+            name: lunar
 name: Publish
 on:
   workflow_call:
