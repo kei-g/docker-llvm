@@ -44,6 +44,14 @@ RUN DEBIAN_FRONTEND=noninteractive \
   && apt autoremove --purge -y \
   && apt clean -y \
   && rm -fr /var/lib/apt/lists/* \
-  && for name in ar as cov nm objcopy objdump otool profdata ranlib readelf strip windres; do \
-      ln -fs llvm-$name-${MAJOR_VERSION:-17} /usr/bin/llvm-$name; \
-    done
+  && find /usr/bin \
+    -name llvm\-\*\-${MAJOR_VERSION:-17} \
+    -exec bash -c '\
+i=1; \
+while [[ $i -lt $# ]]; do \
+  eval name=\${$i##*/}; \
+  eval name=\${name%\-*}; \
+  ln -fs $name-${MAJOR_VERSION:-17} /usr/bin/$name; \
+  i=$((i + 1)); \
+done \
+' -- {} +
