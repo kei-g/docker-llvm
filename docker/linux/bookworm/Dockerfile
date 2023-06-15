@@ -41,7 +41,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
     lld \
     lldb \
     llvm-${MAJOR_VERSION:-17}-tools \
-  && apt-fast clean \
+  && apt autoremove --purge -y \
+  && apt clean -y \
   && rm -fr /var/lib/apt/lists/* \
   && for name in ar as cov nm objcopy objdump otool profdata ranlib readelf strip windres; do \
       ln -fs llvm-$name-${MAJOR_VERSION:-17} /usr/bin/llvm-$name; \
