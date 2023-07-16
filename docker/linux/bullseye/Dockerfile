@@ -3,7 +3,8 @@ FROM snowstep/apt-fast:bullseye
 ARG MAJOR_VERSION
 
 # Install the latest LLVM
-RUN DEBIAN_FRONTEND=noninteractive \
+RUN DEBCONF_NOWARNINGS=yes \
+  && DEBIAN_FRONTEND=noninteractive \
   && apt-fast update \
   && apt-fast upgrade -yqq \
   && apt-fast install --no-install-recommends -y \
