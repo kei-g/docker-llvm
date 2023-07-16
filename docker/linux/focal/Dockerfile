@@ -44,7 +44,6 @@ RUN DEBCONF_NOWARNINGS=yes \
     libclang-${MAJOR_VERSION:-17}-dev \
     libclang-rt-${MAJOR_VERSION:-17}-dev \
     llvm-${MAJOR_VERSION:-17}-tools \
-  && apt autoremove --purge --yes \
   && apt clean --yes \
   && rm -fr /var/lib/apt/lists/* \
   && find /usr/bin \

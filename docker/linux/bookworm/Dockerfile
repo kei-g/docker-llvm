@@ -42,7 +42,6 @@ RUN DEBCONF_NOWARNINGS=yes \
     lld \
     lldb \
     llvm-${MAJOR_VERSION:-17}-tools \
-  && apt autoremove --purge --yes \
   && apt clean --yes \
   && rm -fr /var/lib/apt/lists/* \
   && find /usr/bin \
