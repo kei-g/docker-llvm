@@ -6,8 +6,8 @@ ARG MAJOR_VERSION
 RUN DEBCONF_NOWARNINGS=yes \
   && DEBIAN_FRONTEND=noninteractive \
   && apt-fast update \
-  && apt-fast upgrade -yqq \
-  && apt-fast install --no-install-recommends -y \
+  && apt-fast upgrade --yes \
+  && apt-fast install --no-install-recommends --yes \
     gnupg \
   && keyname=llvm-snapshot.gpg \
   && keydir=/etc/apt/keyrings \
@@ -29,7 +29,7 @@ RUN DEBCONF_NOWARNINGS=yes \
           $distro; \
     done > /etc/apt/sources.list.d/llvm-toolchain.list \
   && apt-fast update \
-  && apt-fast install --no-install-recommends -y \
+  && apt-fast install --no-install-recommends --yes \
     clang \
     clang-format \
     clang-tidy \
@@ -42,8 +42,8 @@ RUN DEBCONF_NOWARNINGS=yes \
     lld \
     lldb \
     llvm-${MAJOR_VERSION:-17}-tools \
-  && apt autoremove --purge -y \
-  && apt clean -y \
+  && apt autoremove --purge --yes \
+  && apt clean --yes \
   && rm -fr /var/lib/apt/lists/* \
   && find /usr/bin \
     -name llvm\-\*\-${MAJOR_VERSION:-17} \
