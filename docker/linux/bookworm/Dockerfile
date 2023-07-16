@@ -41,6 +41,7 @@ RUN DEBCONF_NOWARNINGS=yes \
     libunwind-${MAJOR_VERSION:-17}-dev \
     lld \
     lldb \
+    llvm-${MAJOR_VERSION:-17} \
     llvm-${MAJOR_VERSION:-17}-tools \
   && apt clean --yes \
   && rm -fr /var/lib/apt/lists/* \

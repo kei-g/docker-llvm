@@ -43,6 +43,7 @@ RUN DEBCONF_NOWARNINGS=yes \
     libc++abi-${MAJOR_VERSION:-17}-dev \
     libclang-${MAJOR_VERSION:-17}-dev \
     libclang-rt-${MAJOR_VERSION:-17}-dev \
+    llvm-${MAJOR_VERSION:-17} \
     llvm-${MAJOR_VERSION:-17}-tools \
   && apt clean --yes \
   && rm -fr /var/lib/apt/lists/* \
