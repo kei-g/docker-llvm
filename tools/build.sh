@@ -6,7 +6,7 @@ CONTAINERS=$(docker ps --all --filter=status=exited --format="{{.ID}}" | xargs)
 IMAGES=$(docker images --filter=dangling=true --format="{{.ID}}" | xargs)
 [ -z "$IMAGES" ] || docker rmi "$IMAGES"
 
-codename=bullseye
+codename=bookworm
 repo=https://apt.llvm.org/$codename/dists/llvm-toolchain-$codename
 declare -A dep
 declare -A ver

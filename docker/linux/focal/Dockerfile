@@ -31,13 +31,13 @@ RUN DEBCONF_NOWARNINGS=yes \
   && apt-fast update \
   && apt-fast upgrade --yes \
   && apt-fast install --no-install-recommends --yes \
-    clang \
-    clang-format \
-    clang-tidy \
-    clangd \
-    libunwind-dev \
-    lld \
-    lldb \
+    clang-${MAJOR_VERSION:-18} \
+    clang-format-${MAJOR_VERSION:-18} \
+    clang-tidy-${MAJOR_VERSION:-18} \
+    clangd-${MAJOR_VERSION:-18} \
+    libunwind-${MAJOR_VERSION:-18}-dev \
+    lld-${MAJOR_VERSION:-18} \
+    lldb-${MAJOR_VERSION:-18} \
   && apt-fast install --no-install-recommends --yes \
     libc++-${MAJOR_VERSION:-18}-dev \
     libc++abi-${MAJOR_VERSION:-18}-dev \
@@ -48,7 +48,7 @@ RUN DEBCONF_NOWARNINGS=yes \
   && apt clean --yes \
   && rm -fr /var/lib/apt/lists/* \
   && find /usr/bin \
-    -name llvm\-\*\-${MAJOR_VERSION:-18} \
+    \( -name clang\*-${MAJOR_VERSION:-18} -o -name llvm\*\-${MAJOR_VERSION:-18} \) \
     -exec bash -c '\
 i=1; \
 while [[ $i -lt $# ]]; do \
