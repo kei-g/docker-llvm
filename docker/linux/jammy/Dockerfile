@@ -43,6 +43,7 @@ RUN DEBCONF_NOWARNINGS=yes \
     libc++abi-${MAJOR_VERSION:-18}-dev \
     libclang-${MAJOR_VERSION:-18}-dev \
     libclang-rt-${MAJOR_VERSION:-18}-dev \
+    libomp-${MAJOR_VERSION:-18}-dev \
     llvm-${MAJOR_VERSION:-18} \
     llvm-${MAJOR_VERSION:-18}-tools \
   && apt clean --yes \
