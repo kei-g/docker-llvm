@@ -1,0 +1,44 @@
+concurrency:
+  cancel-in-progress: false
+  group: dependabot
+jobs:
+  approve:
+    if: github.actor == 'dependabot[bot]'
+    name: Approve a PR from Dependabot[bot]
+    outputs:
+      outcome: ${{ steps.approve.outcome }}
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          token: ${{ secrets.MY_TOKEN }}
+          url: ${{ github.event.pull_request.html_url }}
+        id: approve
+        name: Approve a PR
+        run: |
+          export GITHUB_TOKEN=
+          gh auth login --with-token <<< $token
+          gh pr review --approve $url
+        shell: bash
+  merge:
+    if: ${{ needs.approve.outputs.outcome == 'success' }}
+    name: Merge Dependabot PRs
+    needs:
+      - approve
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          head: ${{ github.event.pull_request.head.ref }}
+          url: ${{ github.event.pull_request.html_url }}
+        name: Merge Dependabot PRs
+        run: |
+          id=${url##*/}
+          subject=":twisted_rightwards_arrows: Merge pull request #$id from '$head'"
+          gh pr merge --auto --merge --subject "$subject" $url
+        shell: bash
+name: Dependabot auto-merge
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
