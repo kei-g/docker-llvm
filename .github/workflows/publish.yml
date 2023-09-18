@@ -12,7 +12,7 @@ jobs:
         with:
           fetch-depth: 1
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       - name: Copy Dockerfile
         run: cp docker/linux/bookworm/Dockerfile ./
       - name: Login to DockerHub
@@ -52,7 +52,7 @@ jobs:
         with:
           fetch-depth: 1
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       - name: Copy Dockerfile
         run: cp docker/linux/${{ matrix.name }}/Dockerfile ./
       - name: Login to DockerHub
