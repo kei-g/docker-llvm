@@ -16,7 +16,7 @@ jobs:
       - name: Copy Dockerfile
         run: cp docker/linux/bookworm/Dockerfile ./
       - name: Login to DockerHub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -56,7 +56,7 @@ jobs:
       - name: Copy Dockerfile
         run: cp docker/linux/${{ matrix.name }}/Dockerfile ./
       - name: Login to DockerHub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
           username: ${{ secrets.DOCKERHUB_USERNAME }}
