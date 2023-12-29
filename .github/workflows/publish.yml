@@ -80,6 +80,8 @@ jobs:
             name: jammy
           - dist: ubuntu
             name: lunar
+          - dist: ubuntu
+            name: mantic
 name: Publish
 on:
   workflow_call:
