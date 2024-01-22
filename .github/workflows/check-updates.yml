@@ -1,94 +1,186 @@
 jobs:
-  digest:
-    name: Acquire digest of the latest image
-    outputs:
-      llvm: ${{ steps.llvm.outputs.digest }}
-    runs-on: ubuntu-latest
-    steps:
-      - id: llvm
-        name: Acquire digest of the latest snowstep/llvm
-        run: |
-          digest=$(
-            curl -s https://hub.docker.com/v2/namespaces/snowstep/repositories/llvm/tags \
-              | jq -cr '[.results[]|select(.name=="latest").images[]|select(.architecture=="amd64")]|max_by(.last_pushed).digest'
-          )
-          printf 'digest=%s\n' $digest | tee -a $GITHUB_OUTPUT
-        shell: bash
   dockerhub:
-    name: See the latest snowstep/apt-fast on DockerHub
+    name: Acquire digests from DockerHub
     outputs:
-      OUTDATED: ${{ steps.dockerhub-llvm.outputs.OUTDATED }}
+      bookworm: ${{ steps.dockerhub.outputs.bookworm }}
+      bullseye: ${{ steps.dockerhub.outputs.bullseye }}
+      focal: ${{ steps.dockerhub.outputs.focal }}
+      jammy: ${{ steps.dockerhub.outputs.jammy }}
+      lunar: ${{ steps.dockerhub.outputs.lunar }}
+      mantic: ${{ steps.dockerhub.outputs.mantic }}
+      trixie: ${{ steps.dockerhub.outputs.trixie }}
     runs-on: ubuntu-latest
     steps:
-      - id: dockerhub-llvm
-        name: Compare the latest updates between snowstep/apt-fast and snowstep/llvm
+      - id: dockerhub
+        name: Acquire and compare
         run: |
-          api=https://hub.docker.com/v2/namespaces/snowstep/repositories
-          for repo in apt-fast llvm; do
-            last=$(curl -s $api/$repo/tags | jq -cr '.results[]|select(.name=="latest").last_updated')
-            printf '%s=%s\n' $repo $last >&2
-            date --date=$last "+%s"
-          done | xargs | {
-            read latest_apt_fast latest_llvm
-            printf 'apt_fast=%s\n' $latest_apt_fast >&2
-            printf 'llvm=%s\n' $latest_llvm >&2
-            boolean=(true false)
-            outdated=$([[ $latest_apt_fast -gt $latest_llvm ]]; echo $?)
-            echo OUTDATED=${boolean[$outdated]}
-          } | tee -a $GITHUB_OUTPUT
-        shell: bash
-  llvm:
-    container:
-      image: snowstep/llvm@${{ needs.digest.outputs.llvm }}
-    name: See the latest LLVM release
-    needs:
-      - digest
-    outputs:
-      MAJOR_VERSION: ${{ steps.llvm.outputs.MAJOR_VERSION }}
-      OUTDATED: ${{ steps.llvm.outputs.OUTDATED }}
-    runs-on: ubuntu-latest
-    steps:
-      - id: llvm
-        name: Compare currently installed version with the latest llvm
-        run: |
-          local=$(clang --version | grep version | grep -E '[0-9]{14}' -o | head -n1)
-          printf 'clang version (installed): %s\n' $local >&2
-          codename=$(grep -e '^VERSION_CODENAME=' /etc/os-release)
-          codename=${codename#*=}
-          printf 'codename=%s\n' $codename >&2
-          repo=https://apt.llvm.org/$codename/dists/llvm-toolchain-$codename
-          aria2c --quiet $repo/main/binary-amd64/Packages.gz
-          declare -A dep
-          declare -A ver
-          name=
-          while read line; do
-            key=${line%%:\ *}
-            value=${line#*:\ }
-            case $key in
-              Depends) dep[$name]=${value%%\ *};;
-              Package) name=$value;;
-              Version) ver[$name]=$(grep -E '[0-9]{14}' -o <<< $value | head -n1);;
+          api=https://hub.docker.com/v2/namespaces
+          repo=$api/${{ secrets.DOCKERHUB_USERNAME }}/repositories
+          declare -A apt
+          declare -A llvm
+          while IFS='=' read -r image tag digest date; do
+            last=$(date --date="$date" '+%s')
+            case $image in
+              apt-fast) apt[$tag]=$last;;
+              llvm) llvm[$tag]="$last,$digest";;
             esac
-          done <<< $(gzip -cd Packages.gz)
-          echo MAJOR_VERSION=${dep[clang]#*-} | tee -a $GITHUB_OUTPUT
-          latest=${ver[${dep[clang]}]}
-          printf 'clang version (latest): %s\n' $latest >&2
-          boolean=(true false)
-          outdated=$([[ $latest -gt $local ]]; echo $?)
-          echo OUTDATED=${boolean[$outdated]} | tee -a $GITHUB_OUTPUT
+          done < <(
+            for image in apt-fast llvm; do \
+              curl -s $repo/$image/tags \
+                | jq -Mcr ".results|map(\"$image=\(.name)=\([.images[]|select(.architecture==\"amd64\")]|max_by(.last_pushed)|\"\(.digest)=\(.last_pushed)\")\")|@tsv" \
+                | sed -r 's/\t/\n/g'; \
+            done
+          )
+          for tag in "${!llvm[@]}"; do
+            value=${llvm[$tag]}
+            last=${value%,*}
+            digest=${value#*,}
+            boolean=(true false)
+            outdated=$([[ $last -lt ${apt[$tag]} ]]; echo $?)
+            echo "$tag={\"digest\":\"$digest\",\"outdated\":${boolean[$outdated]}}"
+          done \
+            | tee -a $GITHUB_OUTPUT \
+            >&2
         shell: bash
-  publish-if-outdated:
-    if: ${{ needs.dockerhub.outputs.OUTDATED == 'true' || needs.llvm.outputs.OUTDATED == 'true' }}
-    name: Publish if outdated
+  outdated_bookworm:
     needs:
       - dockerhub
-      - llvm
+    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
+    with:
+      json: ${{ needs.dockerhub.outputs.bookworm }}
+      name: bookworm
+  outdated_bullseye:
+    needs:
+      - dockerhub
+    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
+    with:
+      json: ${{ needs.dockerhub.outputs.bullseye }}
+      name: bullseye
+  outdated_focal:
+    needs:
+      - dockerhub
+    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
+    with:
+      json: ${{ needs.dockerhub.outputs.focal }}
+      name: focal
+  outdated_jammy:
+    needs:
+      - dockerhub
+    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
+    with:
+      json: ${{ needs.dockerhub.outputs.jammy }}
+      name: jammy
+  outdated_lunar:
+    needs:
+      - dockerhub
+    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
+    with:
+      json: ${{ needs.dockerhub.outputs.lunar }}
+      name: lunar
+  outdated_mantic:
+    needs:
+      - dockerhub
+    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
+    with:
+      json: ${{ needs.dockerhub.outputs.mantic }}
+      name: mantic
+  outdated_trixie:
+    needs:
+      - dockerhub
+    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
+    with:
+      json: ${{ needs.dockerhub.outputs.trixie }}
+      name: trixie
+  patch:
+    if: ${{ needs.publish-if-outdated.outputs.outdated == 'true' }}
+    name: Patch the description to DockerHub
+    needs:
+      - publish-if-outdated
     secrets:
       DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-    uses: ./.github/workflows/publish.yml
-    with:
-      MAJOR_VERSION: ${{ needs.llvm.outputs.MAJOR_VERSION }}
+    uses: ./.github/workflows/patch.yml
+  publish-if-outdated:
+    continue-on-error: true
+    name: Publish if ${{ matrix.name }} has outdated
+    needs:
+      - dockerhub
+      - outdated_bookworm
+      - outdated_bullseye
+      - outdated_focal
+      - outdated_jammy
+      - outdated_lunar
+      - outdated_mantic
+      - outdated_trixie
+    outputs:
+      outdated: ${{ steps.outdated.outputs.bookworm == 'true' || steps.outdated.outputs.bullseye == 'true' || steps.outdated.outputs.focal == 'true' || steps.outdated.outputs.jammy == 'true' || steps.outdated.outputs.lunar == 'true' || steps.outdated.outputs.mantic == 'true' || steps.outdated.outputs.trixie == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+        id: outdated
+        name: Necessary for update
+        run: |
+          jq -Mcr '.outdated_${{ matrix.name }}.outputs|"MAJOR_VERSION=\(.MAJOR_VERSION)\nVERSION=\(.VERSION)\n${{ matrix.name }}=\(.OUTDATED)\n value=\(.OUTDATED)"' \
+            <<< $NEEDS \
+            | sed -r 's/^\s+//g' \
+            | tee -a $GITHUB_OUTPUT \
+            >&2
+        shell: bash
+      - if: ${{ steps.outdated.outputs.value == 'true' }}
+        name: Checkout the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - if: ${{ steps.outdated.outputs.value == 'true' }}
+        name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - if: ${{ steps.outdated.outputs.value == 'true' }}
+        name: Copy Dockerfile
+        run: |
+          cp docker/linux/${{ matrix.name }}/Dockerfile ./
+      - if: ${{ steps.outdated.outputs.value == 'true' }}
+        name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+      - id: tags
+        if: ${{ steps.outdated.outputs.value == 'true' }}
+        name: Decide tags
+        run: |
+          name="${{ secrets.DOCKERHUB_USERNAME }}/llvm"
+          case ${{ matrix.name }} in
+            trixie)
+              echo "value=\"$name:${{ matrix.name }}\"%0A\"$name:latest\"%0A\"$name:${{ steps.outdated.outputs.VERSION }}\""
+              ;;
+            *)
+              echo "value=\"$name:${{ matrix.name }}\""
+              ;;
+          esac \
+            | tee -a $GITHUB_OUTPUT \
+            >&2
+      - if: ${{ steps.outdated.outputs.value == 'true' }}
+        name: Run Buildx and Push it to DockerHub
+        uses: docker/build-push-action@v5
+        with:
+          build-args: |
+            MAJOR_VERSION=${{ steps.outdated.outputs.MAJOR_VERSION }}
+          context: .
+          push: true
+          tags: |
+            ${{ steps.tags.outputs.value }}
+    strategy:
+      fail-fast: false
+      matrix:
+        name:
+          - bookworm
+          - bullseye
+          - focal
+          - jammy
+          - lunar
+          - mantic
+          - trixie
 name: Check updates
 on:
   schedule:

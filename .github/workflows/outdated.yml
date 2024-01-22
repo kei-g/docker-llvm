@@ -1,0 +1,105 @@
+jobs:
+  compare:
+    container: snowstep/llvm@${{ needs.parse.outputs.digest }}
+    name: See the latest release of LLVM on snowstep/llvm:${{ inputs.name }}
+    needs:
+      - parse
+    outputs:
+      MAJOR_VERSION: ${{ steps.llvm.outputs.MAJOR_VERSION }}
+      OUTDATED: ${{ needs.parse.outputs.OUTDATED == 'true' || steps.llvm.outputs.OUTDATED =='true' }}
+      VERSION: ${{ steps.llvm.outputs.VERSION }}
+    runs-on: ubuntu-latest
+    steps:
+      - id: llvm
+        name: Compare currently installed version with the latest llvm
+        run: |
+          local=$(
+            which clang \
+              > /dev/null \
+              && { \
+                clang --version \
+                  | grep version \
+                  | grep -E '[0-9]{14}' -o \
+                  | head -n1; \
+              } \
+              || echo 0
+          )
+          echo "clang version (installed): $local" >&2
+          case ${{ inputs.name }} in
+            trixie)
+              repo=unstable
+              name=llvm-toolchain
+              ;;
+            *)
+              repo=${{ inputs.name }}
+              name=llvm-toolchain-${{ inputs.name }}
+              ;;
+          esac
+          repo=https://apt.llvm.org/$repo/dists/$name
+          url=$repo/main/binary-amd64/Packages.gz
+          aria2c --quiet $url \
+            && {
+              declare -A dep
+              declare -A ver
+              name=
+              while read line; do
+                key=${line%%:\ *}
+                value=${line#*:\ }
+                case $key in
+                  Depends) dep[$name]=${value%%\ *};;
+                  Package) name=$value;;
+                  Version) ver[$name]=$(grep -E '[0-9]{14}' -o <<< $value | head -n1);;
+                esac
+              done <<< $(gzip -cd Packages.gz)
+              latest=${ver[${dep[clang]}]}
+              echo "clang version (latest): $latest" >&2
+              boolean=(true false)
+              outdated=$([[ $latest -gt $local ]]; echo $?)
+              echo -e \
+                "MAJOR_VERSION=${dep[clang]#*-}\n" \
+                "OUTDATED=${boolean[$outdated]}\n" \
+                "VERSION=$latest" \
+                | sed -r 's/^\s+//g' \
+                | tee -a $GITHUB_OUTPUT \
+                >&2
+            } \
+            || {
+              echo $url is not found >&2
+              echo OUTDATED=false \
+                | tee -a $GITHUB_OUTPUT \
+                >&2
+            }
+        shell: bash
+  parse:
+    name: Parse JSON for ${{ inputs.name }}
+    outputs:
+      digest: ${{ steps.parse.outputs.DIGEST }}
+      outdated: ${{ steps.parse.outputs.OUTDATED }}
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          JSON: ${{ inputs.json }}
+        id: parse
+        run: |
+          jq -Mcr '"DIGEST=\(.digest)\nOUTDATED=\(.outdated)"' \
+            <<< $JSON \
+            | tee -a $GITHUB_OUTPUT \
+            >&2
+        shell: bash
+name: Compare currently installed version with the latest LLVM
+on:
+  workflow_call:
+    inputs:
+      json:
+        required: true
+        type: string
+      name:
+        required: true
+        type: string
+    outputs:
+      MAJOR_VERSION:
+        value: ${{ jobs.compare.outputs.MAJOR_VERSION }}
+      OUTDATED:
+        value: ${{ jobs.compare.outputs.OUTDATED }}
+      VERSION:
+        value: ${{ jobs.compare.outputs.VERSION }}
