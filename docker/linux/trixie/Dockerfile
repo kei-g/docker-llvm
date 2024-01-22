@@ -31,7 +31,7 @@ RUN DEBCONF_NOWARNINGS=yes \
     clang-format-${MAJOR_VERSION:-18} \
     clang-tidy-${MAJOR_VERSION:-18} \
     clangd-${MAJOR_VERSION:-18} \
-    libc++-${MAJOR_VERISION:-18}-dev \
+    libc++-${MAJOR_VERSION:-18}-dev \
     libc++abi-${MAJOR_VERSION:-18}-dev \
     libclang-${MAJOR_VERSION:-18}-dev \
     libclang-rt-${MAJOR_VERSION:-18}-dev \
