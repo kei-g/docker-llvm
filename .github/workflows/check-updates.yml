@@ -171,7 +171,7 @@ jobs:
             >&2
       - if: ${{ steps.outdated.outputs.value == 'true' }}
         name: Run Buildx and Push it to DockerHub
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           build-args: |
             MAJOR_VERSION=${{ steps.outdated.outputs.MAJOR_VERSION }}
