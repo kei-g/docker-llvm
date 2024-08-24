@@ -157,18 +157,11 @@ jobs:
       - id: tags
         if: ${{ steps.outdated.outputs.value == 'true' }}
         name: Decide tags
-        run: |
-          name="${{ secrets.DOCKERHUB_USERNAME }}/llvm"
-          case ${{ matrix.name }} in
-            trixie)
-              echo "value=\"$name:${{ matrix.name }}\"%0A\"$name:latest\"%0A\"$name:${{ steps.outdated.outputs.VERSION }}\""
-              ;;
-            *)
-              echo "value=\"$name:${{ matrix.name }}\""
-              ;;
-          esac \
-            | tee -a $GITHUB_OUTPUT \
-            >&2
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/llvm
+          tags: |
+            type=raw,value=${{ matrix.name }}
       - if: ${{ steps.outdated.outputs.value == 'true' }}
         name: Run Buildx and Push it to DockerHub
         uses: docker/build-push-action@v6
@@ -178,7 +171,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ steps.tags.outputs.value }}
+            ${{ steps.tags.outputs.tags }}
     strategy:
       fail-fast: false
       matrix:
@@ -190,6 +183,69 @@ jobs:
           - lunar
           - mantic
           - noble
+  publish-latest:
+    continue-on-error: true
+    name: Publish if ${{ matrix.name }} has outdated
+    needs:
+      - dockerhub
+      - outdated_bookworm
+      - outdated_bullseye
+      - outdated_focal
+      - outdated_jammy
+      - outdated_lunar
+      - outdated_mantic
+      - outdated_noble
+      - outdated_trixie
+      - publish-if-outdated
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          NEEDS: ${{ toJSON(needs) }}
+        id: outdated
+        name: Necessary for update
+        run: |
+          jq -Mcr '.outdated_${{ matrix.name }}.outputs|"MAJOR_VERSION=\(.MAJOR_VERSION)\nVERSION=\(.VERSION)\n${{ matrix.name }}=\(.OUTDATED)\n value=\(.OUTDATED)"' \
+            <<< $NEEDS \
+            | sed -r 's/^\s+//g' \
+            | tee -a $GITHUB_OUTPUT \
+            >&2
+        shell: bash
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Copy Dockerfile
+        run: |
+          cp docker/linux/${{ matrix.name }}/Dockerfile ./
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+      - id: tags
+        name: Decide tags
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/llvm
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ matrix.name }}
+            type=raw,value=${{ steps.outdated.outputs.VERSION }}
+      - name: Run Buildx and Push it to DockerHub
+        uses: docker/build-push-action@v6
+        with:
+          build-args: |
+            MAJOR_VERSION=${{ steps.outdated.outputs.MAJOR_VERSION }}
+          context: .
+          push: true
+          tags: |
+            ${{ steps.tags.outputs.tags }}
+    strategy:
+      fail-fast: false
+      matrix:
+        name:
           - trixie
 name: Check updates
 on:
