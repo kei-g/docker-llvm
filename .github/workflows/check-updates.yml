@@ -20,6 +20,7 @@ jobs:
           declare -A apt
           declare -A llvm
           while IFS='=' read -r image tag digest date; do
+            [[ $tag =~ ^[0-9.]+$ ]] && continue
             last=$(date --date="$date" '+%s')
             case $image in
               apt-fast) apt[$tag]=$last;;
@@ -27,9 +28,14 @@ jobs:
             esac
           done < <(
             for image in apt-fast llvm; do \
-              curl -s $repo/$image/tags \
-                | jq -Mcr ".results|map(\"$image=\(.name)=\([.images[]|select(.architecture==\"amd64\")]|max_by(.last_pushed)|\"\(.digest)=\(.last_pushed)\")\")|@tsv" \
-                | sed -r 's/\t/\n/g'; \
+              url="$repo/$image/tags?page_size=100"; \
+              while [[ "$url" != "null" ]]; do \
+                json=$(curl -s "$url"); \
+                jq -Mcr ".results|map(\"$image=\(.name)=\([.images[]|select(.architecture==\"amd64\")]|max_by(.last_pushed)|\"\(.digest)=\(.last_pushed)\")\")|@tsv" \
+                  <<< $json \
+                  | sed -r 's/\t/\n/g'; \
+                url=$(jq -Mcr '.next' <<< $json); \
+              done; \
             done
           )
           for tag in "${!llvm[@]}"; do
