@@ -6,8 +6,6 @@ jobs:
       bullseye: ${{ steps.dockerhub.outputs.bullseye }}
       focal: ${{ steps.dockerhub.outputs.focal }}
       jammy: ${{ steps.dockerhub.outputs.jammy }}
-      lunar: ${{ steps.dockerhub.outputs.lunar }}
-      mantic: ${{ steps.dockerhub.outputs.mantic }}
       noble: ${{ steps.dockerhub.outputs.noble }}
       trixie: ${{ steps.dockerhub.outputs.trixie }}
     runs-on: ubuntu-latest
@@ -77,20 +75,6 @@ jobs:
     with:
       json: ${{ needs.dockerhub.outputs.jammy }}
       name: jammy
-  outdated_lunar:
-    needs:
-      - dockerhub
-    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
-    with:
-      json: ${{ needs.dockerhub.outputs.lunar }}
-      name: lunar
-  outdated_mantic:
-    needs:
-      - dockerhub
-    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
-    with:
-      json: ${{ needs.dockerhub.outputs.mantic }}
-      name: mantic
   outdated_noble:
     needs:
       - dockerhub
@@ -123,12 +107,10 @@ jobs:
       - outdated_bullseye
       - outdated_focal
       - outdated_jammy
-      - outdated_lunar
-      - outdated_mantic
       - outdated_noble
       - outdated_trixie
     outputs:
-      outdated: ${{ steps.outdated.outputs.bookworm == 'true' || steps.outdated.outputs.bullseye == 'true' || steps.outdated.outputs.focal == 'true' || steps.outdated.outputs.jammy == 'true' || steps.outdated.outputs.lunar == 'true' || steps.outdated.outputs.mantic == 'true' || steps.outdated.outputs.noble == 'true' || steps.outdated.outputs.trixie == 'true' }}
+      outdated: ${{ steps.outdated.outputs.bookworm == 'true' || steps.outdated.outputs.bullseye == 'true' || steps.outdated.outputs.focal == 'true' || steps.outdated.outputs.jammy == 'true' || steps.outdated.outputs.noble == 'true' || steps.outdated.outputs.trixie == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - env:
@@ -186,8 +168,6 @@ jobs:
           - bullseye
           - focal
           - jammy
-          - lunar
-          - mantic
           - noble
   publish-latest:
     continue-on-error: true
@@ -198,8 +178,6 @@ jobs:
       - outdated_bullseye
       - outdated_focal
       - outdated_jammy
-      - outdated_lunar
-      - outdated_mantic
       - outdated_noble
       - outdated_trixie
       - publish-if-outdated
