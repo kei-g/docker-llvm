@@ -31,6 +31,7 @@ RUN DEBCONF_NOWARNINGS=yes \
     clang-format-${MAJOR_VERSION:-21} \
     clang-tidy-${MAJOR_VERSION:-21} \
     clangd-${MAJOR_VERSION:-21} \
+    flang-${MAJOR_VERSION:-21} \
     libc++-${MAJOR_VERSION:-21}-dev \
     libc++abi-${MAJOR_VERSION:-21}-dev \
     libclang-${MAJOR_VERSION:-21}-dev \
@@ -54,4 +55,11 @@ while [[ $i -lt $# ]]; do \
   ln -fs $name-${MAJOR_VERSION:-21} /usr/bin/$name; \
   i=$((i + 1)); \
 done \
-' -- {} +
+' -- {} + \
+  && grep -P '/bin/([^-]+-)+21$' /var/lib/dpkg/info/flang-21.list \
+    | while read -r full; do \
+      dir=${full%/*}; \
+      name=${full##*/}; \
+      name=${name%\-*}; \
+      ln -fs $name-${MAJOR_VERSION:-21} $dir/$name; \
+    done
