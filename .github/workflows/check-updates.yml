@@ -230,7 +230,7 @@ jobs:
       fail-fast: false
       matrix:
         name:
-          - trixie
+          - bookworm
 name: Check updates
 on:
   schedule:
