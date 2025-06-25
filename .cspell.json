@@ -5,6 +5,7 @@
     "buildx",
     "dockerhub",
     "esac",
+    "jlumbroso",
     "snowstep",
     "trixie"
   ],
