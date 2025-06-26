@@ -18,7 +18,8 @@ RUN DEBCONF_NOWARNINGS=yes \
   && [ -d $keydir ] \
     || mkdir -pv $keydir \
   && gpg --export > $keydir/$keyname \
-  && distro=noble\
+  && distro=$(grep -E '^VERSION_CODENAME=.+$' < /etc/os-release) \
+  && distro=${distro#*=} \
   && for what in deb deb-src; do \
       printf \
         '%s [signed-by=%s] http://%s/%s/ llvm-toolchain-%s main\n' \
