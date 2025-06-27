@@ -129,6 +129,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          ref: main
       - if: ${{ steps.outdated.outputs.value == 'true' }}
         name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -142,6 +143,10 @@ jobs:
         with:
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
           username: ${{ secrets.DOCKERHUB_USERNAME }}
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
       - id: tags
         if: ${{ steps.outdated.outputs.value == 'true' }}
         name: Decide tags
@@ -198,6 +203,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          ref: main
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Copy Dockerfile
@@ -208,6 +214,10 @@ jobs:
         with:
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
           username: ${{ secrets.DOCKERHUB_USERNAME }}
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
       - id: tags
         name: Decide tags
         uses: docker/metadata-action@v5

@@ -7,6 +7,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: main
       - name: Patch the description
         uses: kei-g/dockerhub-patch@main
         with:

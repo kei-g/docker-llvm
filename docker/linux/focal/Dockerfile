@@ -1,11 +1,11 @@
-FROM snowstep/apt-fast:focal
-
 ARG MAJOR_VERSION
 
 # Install the latest LLVM
-RUN DEBCONF_NOWARNINGS=yes \
-  && DEBIAN_FRONTEND=noninteractive \
-  && apt-fast update \
+FROM snowstep/apt-fast:focal AS common
+
+ENV DEBCONF_NOWARNINGS=yes
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-fast update \
   && apt-fast upgrade --yes \
   && apt-fast install --no-install-recommends --yes \
     gnupg \
@@ -36,7 +36,6 @@ RUN DEBCONF_NOWARNINGS=yes \
     clang-format-${MAJOR_VERSION:-21} \
     clang-tidy-${MAJOR_VERSION:-21} \
     clangd-${MAJOR_VERSION:-21} \
-    flang-${MAJOR_VERSION:-21} \
     libunwind-${MAJOR_VERSION:-21}-dev \
     lld-${MAJOR_VERSION:-21} \
     lldb-${MAJOR_VERSION:-21} \
@@ -49,8 +48,6 @@ RUN DEBCONF_NOWARNINGS=yes \
     libomp-${MAJOR_VERSION:-21}-dev \
     llvm-${MAJOR_VERSION:-21} \
     llvm-${MAJOR_VERSION:-21}-tools \
-  && apt clean --yes \
-  && rm -fr /var/lib/apt/lists/* \
   && find /usr/bin \
     \( -name clang\*-${MAJOR_VERSION:-21} -o -name lld\*-${MAJOR_VERSION:-21} -o -name llvm\*-${MAJOR_VERSION:-21} \) \
     -exec bash -c '\
@@ -61,11 +58,62 @@ while [[ $i -lt $# ]]; do \
   ln -fs $name-${MAJOR_VERSION:-21} /usr/bin/$name; \
   i=$((i + 1)); \
 done \
-' -- {} + \
+' -- {} +
+
+# Build the fortran runtime library
+FROM common AS flang_rt-builder
+
+COPY pip.conf /etc/
+RUN apt-fast install --no-install-recommends --yes \
+    git \
+    libedit-dev \
+    libxml2-dev \
+    libzstd-dev \
+    python3-pip \
+    zlib1g-dev \
+    zstd \
+  && pip install \
+    cmake \
+    ninja \
+  && apt clean --yes \
+  && rm -fr /var/lib/apt/lists/* \
+  && git clone --depth=1 https://github.com/llvm/llvm-project.git \
+  && mkdir build dist \
+  && cd build \
+  && cmake \
+    -D CMAKE_BUILD_TYPE=Release \
+    -D CMAKE_CXX_COMPILER=clang++ \
+    -D CMAKE_CXX_STANDARD=17 \
+    -D CMAKE_C_COMPILER=clang \
+    -D CMAKE_INSTALL_PREFIX=/dist \
+    -D LLVM_BUILD_INSTRUMENTED_COVERAGE=OFF \
+    -D LLVM_BUILD_TESTS=OFF \
+    -D LLVM_BUILD_TOOLS=OFF \
+    -D LLVM_ENABLE_LIBCXX=ON \
+    -D LLVM_ENABLE_PROJECTS="flang" \
+    -D LLVM_ENABLE_RUNTIMES="compiler-rt;flang-rt;openmp" \
+    -D LLVM_INCLUDE_BENCHMARKS=OFF \
+    -D LLVM_INCLUDE_EXAMPLES=OFF \
+    -D LLVM_INCLUDE_TESTS=OFF \
+    -D LLVM_INSTALL_UTILS=OFF \
+    -D LLVM_TARGETS_TO_BUILD=X86 \
+    -G Ninja \
+    -S /llvm-project/llvm \
+  && ninja flang-rt \
+  && ninja install \
+  && mv /dist/lib/clang/${MAJOR_VERSION:-21}/lib/x86_64-unknown-linux-gnu/libflang_rt.runtime.a /dist/
+
+# Copy libflang_rt.runtime.a
+FROM common
+RUN apt-fast install --no-install-recommends --yes \
+    flang-${MAJOR_VERSION:-21} \
   && grep -P '/bin/([^-]+-)+21$' /var/lib/dpkg/info/flang-21.list \
     | while read -r full; do \
       dir=${full%/*}; \
       name=${full##*/}; \
       name=${name%\-*}; \
       ln -fs $name-${MAJOR_VERSION:-21} $dir/$name; \
-    done
+    done \
+  && apt clean --yes \
+  && rm -fr /var/lib/apt/lists/*
+COPY --from=flang_rt-builder /dist/libflang_rt.runtime.a /usr/lib/x86_64-linux-gnu/
