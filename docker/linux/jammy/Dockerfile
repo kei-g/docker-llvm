@@ -105,7 +105,7 @@ RUN apt-fast install --no-install-recommends --yes \
 
 # Copy libflang_rt.runtime.a
 FROM common
-RUN apt install --no-install-recommends --yes \
+RUN apt-fast install --no-install-recommends --yes \
     flang-${MAJOR_VERSION:-21} \
   && grep -P '/bin/([^-]+-)+21$' /var/lib/dpkg/info/flang-21.list \
     | while read -r full; do \
