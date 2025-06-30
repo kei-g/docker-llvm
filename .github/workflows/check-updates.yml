@@ -94,6 +94,7 @@ jobs:
     name: Patch the description to DockerHub
     needs:
       - publish-if-outdated
+      - publish-latest
     secrets:
       DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -169,7 +170,6 @@ jobs:
       fail-fast: false
       matrix:
         name:
-          - bookworm
           - bullseye
           - focal
           - jammy
