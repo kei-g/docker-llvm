@@ -95,7 +95,12 @@ RUN apt-fast install --no-install-recommends --yes \
     -S /llvm-project/llvm \
   && ninja flang-rt \
   && ninja install \
-  && mv /dist/lib/clang/${MAJOR_VERSION:-21}/lib/x86_64-unknown-linux-gnu/libflang_rt.runtime.a /dist/
+  && major_version=$( \
+    grep -P '^\s+set\(LLVM_VERSION_MAJOR\s+[1-9][0-9]*\)$' \
+      < /llvm-project/cmake/Modules/LLVMVersion.cmake \
+      | sed -r 's/^\s+set\(LLVM_VERSION_MAJOR\s([1-9][0-9]*)\)$/\1/' \
+  ) \
+  && mv /dist/lib/clang/$major_version/lib/x86_64-unknown-linux-gnu/libflang_rt.runtime.a /dist/
 
 # Copy libflang_rt.runtime.a
 FROM common
