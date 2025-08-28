@@ -127,7 +127,7 @@ jobs:
         shell: bash
       - if: ${{ steps.outdated.outputs.value == 'true' }}
         name: Checkout the repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
           ref: main
@@ -200,7 +200,7 @@ jobs:
             >&2
         shell: bash
       - name: Checkout the repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 1
           ref: main
