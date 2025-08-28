@@ -75,10 +75,7 @@ RUN apt-fast install --no-install-recommends --yes \
     ninja \
   && apt clean --yes \
   && rm -fr /var/lib/apt/lists/* \
-  && git clone \
-      --depth=1 \
-      -b llvmorg-21.1.0-rc1 \
-    https://github.com/llvm/llvm-project.git \
+  && git clone --depth=1 https://github.com/llvm/llvm-project.git \
   && mkdir build dist \
   && cd build \
   && cmake \
