@@ -5,6 +5,7 @@
     "buildx",
     "dockerhub",
     "esac",
+    "flang",
     "jlumbroso",
     "snowstep",
     "trixie"
