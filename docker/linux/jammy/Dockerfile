@@ -89,8 +89,8 @@ RUN apt-fast install --no-install-recommends --yes \
       -D LLVM_BUILD_TESTS=OFF \
       -D LLVM_BUILD_TOOLS=ON \
       -D LLVM_ENABLE_LIBCXX=ON \
-      -D LLVM_ENABLE_PROJECTS="bolt;clang;clang-tools-extra;cross-project-tests;flang;lld;lldb;mlir;polly" \
-      -D LLVM_ENABLE_RUNTIMES="libc;libunwind;libcxxabi;libcxx;compiler-rt;openmp;offload;flang-rt;libclc;libsycl;orc-rt" \
+      -D LLVM_ENABLE_PROJECTS="bolt;clang;clang-tools-extra;flang;lld;lldb;mlir;polly" \
+      -D LLVM_ENABLE_RUNTIMES="libc;libunwind;libcxxabi;libcxx;compiler-rt;openmp;flang-rt;libclc" \
       -D LLVM_INCLUDE_BENCHMARKS=OFF \
       -D LLVM_INCLUDE_EXAMPLES=OFF \
       -D LLVM_INCLUDE_TESTS=OFF \
