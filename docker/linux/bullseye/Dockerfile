@@ -53,21 +53,21 @@ RUN apt-fast install --no-install-recommends --yes \
     done > /etc/apt/sources.list.d/llvm-toolchain.list \
   && apt-fast update \
   && apt-fast install --no-install-recommends --yes \
-    clang-${MAJOR_VERSION:-22} \
-    clang-format-${MAJOR_VERSION:-22} \
-    clang-tidy-${MAJOR_VERSION:-22} \
-    clangd-${MAJOR_VERSION:-22} \
-    libc++-${MAJOR_VERSION:-22}-dev \
-    libc++abi-${MAJOR_VERSION:-22}-dev \
-    libclang-${MAJOR_VERSION:-22}-dev \
-    libclang-rt-${MAJOR_VERSION:-22}-dev \
-    libclc-${MAJOR_VERSION:-22}-dev \
-    libomp-${MAJOR_VERSION:-22}-dev \
-    libunwind-${MAJOR_VERSION:-22}-dev \
-    lld-${MAJOR_VERSION:-22} \
-    lldb-${MAJOR_VERSION:-22} \
-    llvm-${MAJOR_VERSION:-22} \
-    llvm-${MAJOR_VERSION:-22}-tools \
+    clang-${MAJOR_VERSION:-19} \
+    clang-format-${MAJOR_VERSION:-19} \
+    clang-tidy-${MAJOR_VERSION:-19} \
+    clangd-${MAJOR_VERSION:-19} \
+    libc++-${MAJOR_VERSION:-19}-dev \
+    libc++abi-${MAJOR_VERSION:-19}-dev \
+    libclang-${MAJOR_VERSION:-19}-dev \
+    libclang-rt-${MAJOR_VERSION:-19}-dev \
+    libclc-${MAJOR_VERSION:-19}-dev \
+    libomp-${MAJOR_VERSION:-19}-dev \
+    libunwind-${MAJOR_VERSION:-19}-dev \
+    lld-${MAJOR_VERSION:-19} \
+    lldb-${MAJOR_VERSION:-19} \
+    llvm-${MAJOR_VERSION:-19} \
+    llvm-${MAJOR_VERSION:-19}-tools \
   && /etc/symlink.sh \
   && apt clean --yes \
   && rm -fr /var/lib/apt/lists/* \
