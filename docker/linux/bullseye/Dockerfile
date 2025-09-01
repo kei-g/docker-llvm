@@ -53,22 +53,22 @@ RUN apt-fast install --no-install-recommends --yes \
     done > /etc/apt/sources.list.d/llvm-toolchain.list \
   && apt-fast update \
   && apt-fast install --no-install-recommends --yes \
-    clang-${MAJOR_VERSION:-19} \
-    clang-format-${MAJOR_VERSION:-19} \
-    clang-tidy-${MAJOR_VERSION:-19} \
-    clangd-${MAJOR_VERSION:-19} \
-    libc++-${MAJOR_VERSION:-19}-dev \
-    libc++abi-${MAJOR_VERSION:-19}-dev \
-    libclang-${MAJOR_VERSION:-19}-dev \
-    libclang-rt-${MAJOR_VERSION:-19}-dev \
-    libclc-${MAJOR_VERSION:-19}-dev \
-    libomp-${MAJOR_VERSION:-19}-dev \
-    libunwind-${MAJOR_VERSION:-19}-dev \
-    lld-${MAJOR_VERSION:-19} \
-    lldb-${MAJOR_VERSION:-19} \
-    llvm-${MAJOR_VERSION:-19} \
-    llvm-${MAJOR_VERSION:-19}-tools \
-  && /etc/symlink.sh \
+    clang-${MAJOR_VERSION:-16} \
+    clang-format-${MAJOR_VERSION:-16} \
+    clang-tidy-${MAJOR_VERSION:-16} \
+    clangd-${MAJOR_VERSION:-16} \
+    libc++-${MAJOR_VERSION:-16}-dev \
+    libc++abi-${MAJOR_VERSION:-16}-dev \
+    libclang-${MAJOR_VERSION:-16}-dev \
+    libclang-rt-${MAJOR_VERSION:-16}-dev \
+    libclc-${MAJOR_VERSION:-16}-dev \
+    libomp-${MAJOR_VERSION:-16}-dev \
+    libunwind-${MAJOR_VERSION:-16}-dev \
+    lld-${MAJOR_VERSION:-16} \
+    lldb-${MAJOR_VERSION:-16} \
+    llvm-${MAJOR_VERSION:-16} \
+    llvm-${MAJOR_VERSION:-16}-tools \
+  && MAJOR_VERSION=${MAJOR_VERSION:-16} /etc/symlink.sh \
   && apt clean --yes \
   && rm -fr /var/lib/apt/lists/* \
   && git clone --depth=1 https://github.com/llvm/llvm-project.git \

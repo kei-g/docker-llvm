@@ -1,0 +1,26 @@
+jobs:
+  build:
+    name: Build on ${{ matrix.distro }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - name: Copy Dockerfile
+        run: cp docker/linux/${{ matrix.distro }}/Dockerfile ./
+      - name: Build
+        run: docker build -t snowstep/llvm:${{ matrix.distro }} .
+    strategy:
+      fail-fast: false
+      matrix:
+        distro:
+          - bookworm
+          - bullseye
+          - focal
+          - jammy
+          - noble
+          - trixie
+name: Build
+on:
+  workflow_dispatch:

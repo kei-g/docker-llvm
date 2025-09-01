@@ -68,7 +68,7 @@ RUN apt-fast install --no-install-recommends --yes \
     lldb-${MAJOR_VERSION:-19} \
     llvm-${MAJOR_VERSION:-19} \
     llvm-${MAJOR_VERSION:-19}-tools \
-  && /etc/symlink.sh \
+  && MAJOR_VERSION=${MAJOR_VERSION:-19} /etc/symlink.sh \
   && apt clean --yes \
   && rm -fr /var/lib/apt/lists/* \
   && git clone --depth=1 https://github.com/llvm/llvm-project.git \
