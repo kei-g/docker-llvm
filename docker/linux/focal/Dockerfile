@@ -72,6 +72,8 @@ RUN apt-fast install --no-install-recommends --yes \
   && MAJOR_VERSION=${MAJOR_VERSION:-18} /etc/symlink.sh \
   && apt clean --yes \
   && rm -fr /var/lib/apt/lists/* \
+  && rm -fr $(find /usr/include/c++ -maxdepth 1 -type d | grep -P '/[1-9][0-9]*$' | xargs) \
+  && rm -fr $(find /usr/include/x86_64-linux-gnu/c++ -maxdepth 1 -type d | grep -P '/[1-9][0-9]*$' | xargs) \
   && git clone --depth=1 https://github.com/llvm/llvm-project.git \
   && timestamp=$( \
     cd llvm-project; \
