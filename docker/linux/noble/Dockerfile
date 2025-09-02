@@ -36,6 +36,10 @@ RUN apt-fast install --no-install-recommends --yes \
   && apt clean --yes \
   && rm -fr /var/lib/apt/lists/* \
   && git clone --depth=1 https://github.com/llvm/llvm-project.git \
+  && gitref=$( \
+    cd llvm-project; \
+    TZ=UTZ0 git log --pretty=format:%H -1 | head -c12; \
+  ) \
   && timestamp=$( \
     cd llvm-project; \
     TZ=UTC0 git log --date='format-local:%Y%m%d%H%M%S' --pretty=format:%cd -1; \
@@ -59,19 +63,11 @@ RUN apt-fast install --no-install-recommends --yes \
       -D LLVM_INSTALL_UTILS=ON \
       -D LLVM_LIBGCC_EXPLICIT_OPT_IN=Yes \
       -D LLVM_TARGETS_TO_BUILD=X86 \
+      -D LLVM_VERSION_SUFFIX="++$timestamp+$gitref" \
       -G Ninja \
       -S /llvm-project/llvm \
   && ninja \
-  && ninja install \
-  && major_version=$( \
-    grep -P '^\s+set\(LLVM_VERSION_MAJOR\s+[1-9][0-9]*\)$' \
-      < /llvm-project/cmake/Modules/LLVMVersion.cmake \
-      | sed -r 's/^\s+set\(LLVM_VERSION_MAJOR\s([1-9][0-9]*)\)$/\1/' \
-  ) \
-  && dir=/dist/usr/local/etc/llvm \
-  && mkdir -p $dir \
-  && echo $major_version > $dir/major_version.txt \
-  && echo $timestamp > $dir/timestamp.txt
+  && ninja install
 
 # Copy the built source and create symbolic links
 FROM common
