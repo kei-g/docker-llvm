@@ -1,26 +1,156 @@
 jobs:
   build:
-    name: Build on ${{ matrix.distro }}
+    env:
+      DEBCONF_NOWARNINGS: yes
+      DEBIAN_FRONTEND: noninteractive
+    name: Build ${{ needs.llvm.outputs.gitref }}/${{ needs.llvm.outputs.timestamp }}
+    needs:
+      - llvm
     runs-on: ubuntu-latest
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v5
         with:
           fetch-depth: 1
-      - name: Copy Dockerfile
-        run: cp docker/linux/${{ matrix.distro }}/Dockerfile ./
-      - name: Build
-        run: docker build -t snowstep/llvm:${{ matrix.distro }} .
-    strategy:
-      fail-fast: false
-      matrix:
-        distro:
-          - bookworm
-          - bullseye
-          - focal
-          - jammy
-          - noble
-          - trixie
+      - name: Install `criu`
+        run: |
+          apt install ./.github/criu_4.1.1_amd64.deb
+      - name: Install dependent packages
+        run: |
+          apt install --no-install-recommends --yes \
+            gnupg \
+            libedit-dev \
+            liblzma-dev \
+            libxml2-dev \
+            libzstd-dev \
+            ocaml \
+            python3-dev \
+            swig
+      - id: restore-source
+        name: Restore the llvm source from cache
+        uses: actions/cache/restore@v4
+        with:
+          key: llvm-${{ needs.llvm.outputs.gitref }}-${{ needs.llvm.outputs.timestamp }}
+          path: |
+            ~/llvm-project
+          restore-key: llvm-
+      - id: restore-work
+        name: Restore the working directories from cache
+        uses: actions/cache/restore@v4
+        with:
+          key: work-${{ needs.llvm.outputs.gitref }}-${{ needs.llvm.outputs.timestamp }}
+          path: |
+            /tmp/build
+            /tmp/work
+          restore-key: work-
+      - env:
+          gitref: ${{ needs.llvm.outputs.gitref }}
+          timestamp: ${{ needs.llvm.outputs.timestamp }}
+        if: ${{ steps.restore-work.outputs.cache-hit == false }}
+        name: Configure
+        run: |
+          mkdir /tmp/build
+          cd /tmp/build
+          cmake \
+            -D CMAKE_BUILD_TYPE=Release \
+            -D CMAKE_CXX_STANDARD=17 \
+            -D CMAKE_INSTALL_PREFIX=/tmp/dist \
+            -D LLVM_BUILD_INSTRUMENTED_COVERAGE=OFF \
+            -D LLVM_BUILD_TESTS=OFF \
+            -D LLVM_BUILD_TOOLS=ON \
+            -D LLVM_ENABLE_LIBCXX=OFF \
+            -D LLVM_ENABLE_LLD=OFF \
+            -D LLVM_ENABLE_PROJECTS="bolt,clang;clang-tools-extra;flang;lld;lldb;mlir;polly" \
+            -D LLVM_ENABLE_RUNTIMES="libc;libunwind;libcxxabi;libcxx;compiler-rt;openmp;flang-rt;libclc" \
+            -D LLVM_INCLUDE_BENCHMARKS=OFF \
+            -D LLVM_INCLUDE_EXAMPLES=OFF \
+            -D LLVM_INCLUDE_TESTS=OFF \
+            -D LLVM_INSTALL_UTILS=ON \
+            -D LLVM_TARGETS_TO_BUILD=X86 \
+            -D LLVM_VERSION_SUFFIX="++$timestamp+$gitref" \
+            -G Ninja \
+            -S ~/llvm-project/llvm
+      - if: ${{ steps.restore-work.outputs.cache-hit }}
+        name: Continue building
+        run: |
+          cd /tmp/build
+          criu restore -D /tmp/work -j &
+          pid=$!
+          sleep $(( 90 * 60 ))
+          j=$(jobs -l | grep $pid || echo)
+          [[ $j =~ running ]] \
+            && {
+              rm -fr /tmp/work
+              mkdir /tmp/work
+              criu dump -D /tmp/work -j -t $pid;
+              echo cancelled=true | tee -a $GITHUB_OUTPUT > /dev/null
+            } \
+            || \
+              echo cancelled=false | tee -a $GITHUB_OUTPUT > /dev/null
+        shell: /bin/bash
+      - if: ${{ steps.restore-work.outputs.cache-hit }}
+        name: Build
+        run: |
+          cd /tmp/build
+          cmake --build . &
+          pid=$!
+          sleep $(( 90 * 60 ))
+          j=$(jobs -l | grep $pid || echo)
+          [[ $j =~ running ]] \
+            && {
+              criu dump -D /tmp/work -j -t $pid;
+              echo cancelled=true | tee -a $GITHUB_OUTPUT > /dev/null
+            } \
+            || \
+              echo cancelled=false | tee -a $GITHUB_OUTPUT > /dev/null
+        shell: /bin/bash
+      - if: ${{ steps.build-a.outputs.cancelled == true || steps.build-b.outputs.cancelled == true }}
+        name: Cache the building state
+        uses: actions/cache/save@v4
+        with:
+          key: work-${{ needs.llvm.outputs.gitref }}-${{ needs.llvm.outputs.timestamp }}
+          path:
+            /tmp/build
+            /tmp/work
+      - if: ${{ steps.build-a.outputs.cancelled == false || steps.build-b.outputs.cancelled == false }}
+        name: Install
+        run: |
+          cd /tmp/build
+          cmake --install .
+          find /tmp/dist -type f -exec md5sum {} \; > md5sums
+          tar -C /tmp/dist -cf - . | xz -9cevz > /tmp/dist/data.tar.xz
+          mv md5sums /tmp/dist/
+      - if: ${{ steps.build-a.outputs.cancelled == false || steps.build-b.outputs.cancelled == false }}
+        name: Upload built files as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: llvm-${{ needs.llvm.outputs.timestamp }}
+          path: /tmp/dist
+  llvm:
+    name: Clone llvm repository
+    outputs:
+      gitref: ${{ steps.git.outputs.ref }}
+      timestamp: ${{ steps.git.outputs.timestamp }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone the repository
+        run: |
+          git clone \
+              --depth=1 \
+              --recursive \
+              -o github \
+            https://github.com/llvm/llvm-project.git
+      - id: git
+        name: Acquire ref and timestamp of the repository
+        run: |
+          cd llvm-project
+          echo ref=$(TZ=UTC0 git log --pretty=format:%H -1) | tee -a $GITHUB_OUTPUT > /dev/null
+          echo timestamp=$(TZ=UTC0 git log --date='format-local:%Y%m%d%H%M%S' --pretty=format:%cd -1) | tee -a $GFITHUB_OUTPUT > /dev/null
+      - name: Cache the repository
+        uses: actions/cache/save@v4
+        with:
+          key: llvm-${{ steps.git.outputs.ref }}-${{ steps.git.outputs.timestamp }}
+          path: ~/llvm-project
 name: Build
 on:
   workflow_dispatch:
