@@ -62,7 +62,7 @@ jobs:
             -D LLVM_BUILD_TOOLS=ON \
             -D LLVM_ENABLE_LIBCXX=OFF \
             -D LLVM_ENABLE_LLD=OFF \
-            -D LLVM_ENABLE_PROJECTS="bolt,clang;clang-tools-extra;flang;lld;lldb;mlir;polly" \
+            -D LLVM_ENABLE_PROJECTS="bolt;clang;clang-tools-extra;flang;lld;lldb;mlir;polly" \
             -D LLVM_ENABLE_RUNTIMES="libc;libunwind;libcxxabi;libcxx;compiler-rt;openmp;flang-rt;libclc" \
             -D LLVM_INCLUDE_BENCHMARKS=OFF \
             -D LLVM_INCLUDE_EXAMPLES=OFF \
