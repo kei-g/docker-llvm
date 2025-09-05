@@ -14,10 +14,10 @@ jobs:
           fetch-depth: 1
       - name: Install `criu`
         run: |
-          apt install ./.github/criu_4.1.1_amd64.deb
+          sudo apt install ./.github/criu_4.1.1_amd64.deb
       - name: Install dependent packages
         run: |
-          apt install --no-install-recommends --yes \
+          sudo apt install --no-install-recommends --yes \
             gnupg \
             libedit-dev \
             liblzma-dev \
@@ -74,7 +74,7 @@ jobs:
         name: Continue building
         run: |
           cd /tmp/build
-          criu restore -D /tmp/work -j &
+          sudo criu restore -D /tmp/work -j &
           pid=$!
           sleep $(( 90 * 60 ))
           j=$(jobs -l | grep $pid || echo)
@@ -82,7 +82,7 @@ jobs:
             && {
               rm -fr /tmp/work
               mkdir /tmp/work
-              criu dump -D /tmp/work -j -t $pid;
+              sudo criu dump -D /tmp/work -j -t $pid;
               echo cancelled=true | tee -a $GITHUB_OUTPUT > /dev/null
             } \
             || \
@@ -98,7 +98,7 @@ jobs:
           j=$(jobs -l | grep $pid || echo)
           [[ $j =~ running ]] \
             && {
-              criu dump -D /tmp/work -j -t $pid;
+              sudo criu dump -D /tmp/work -j -t $pid;
               echo cancelled=true | tee -a $GITHUB_OUTPUT > /dev/null
             } \
             || \
