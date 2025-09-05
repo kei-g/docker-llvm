@@ -32,7 +32,7 @@ jobs:
         with:
           key: llvm-${{ needs.llvm.outputs.gitref }}-${{ needs.llvm.outputs.timestamp }}
           path: |
-            ~/llvm-project
+            /tmp/llvm-project
           restore-key: llvm-
       - id: restore-work
         name: Restore the working directories from cache
@@ -69,7 +69,7 @@ jobs:
             -D LLVM_TARGETS_TO_BUILD=X86 \
             -D LLVM_VERSION_SUFFIX="++$timestamp+$gitref" \
             -G Ninja \
-            -S ~/llvm-project/llvm
+            -S /tmp/llvm-project/llvm
       - if: ${{ steps.restore-work.outputs.cache-hit }}
         name: Continue building
         run: |
@@ -139,18 +139,19 @@ jobs:
               --depth=1 \
               --recursive \
               -o github \
-            https://github.com/llvm/llvm-project.git
+            https://github.com/llvm/llvm-project.git \
+            /tmp/llvm-project
       - id: git
         name: Acquire ref and timestamp of the repository
         run: |
-          cd llvm-project
+          cd /tmp/llvm-project
           echo ref=$(TZ=UTC0 git log --pretty=format:%H -1) | tee -a $GITHUB_OUTPUT > /dev/null
           echo timestamp=$(TZ=UTC0 git log --date='format-local:%Y%m%d%H%M%S' --pretty=format:%cd -1) | tee -a $GFITHUB_OUTPUT > /dev/null
       - name: Cache the repository
         uses: actions/cache/save@v4
         with:
           key: llvm-${{ steps.git.outputs.ref }}-${{ steps.git.outputs.timestamp }}
-          path: ~/llvm-project
+          path: /tmp/llvm-project
 name: Build
 on:
   workflow_dispatch:
