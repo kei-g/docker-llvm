@@ -33,7 +33,8 @@ jobs:
           key: llvm-${{ needs.llvm.outputs.gitref }}-${{ needs.llvm.outputs.timestamp }}
           path: |
             /tmp/llvm-project
-          restore-key: llvm-
+          restore-keys: |
+            llvm-
       - id: restore-work
         name: Restore the working directories from cache
         uses: actions/cache/restore@v4
@@ -42,7 +43,8 @@ jobs:
           path: |
             /tmp/build
             /tmp/work
-          restore-key: work-
+          restore-keys: |
+            work-
       - env:
           gitref: ${{ needs.llvm.outputs.gitref }}
           timestamp: ${{ needs.llvm.outputs.timestamp }}
