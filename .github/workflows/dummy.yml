@@ -72,7 +72,8 @@ jobs:
             -D LLVM_VERSION_SUFFIX="++$timestamp+$gitref" \
             -G Ninja \
             -S /tmp/llvm-project/llvm
-      - if: ${{ steps.restore-work.outputs.cache-hit == true }}
+      - id: build-a
+        if: ${{ steps.restore-work.outputs.cache-hit == true }}
         name: Continue building
         run: |
           cd /tmp/build
@@ -89,8 +90,9 @@ jobs:
             } \
             || \
               echo cancelled=false | tee -a $GITHUB_OUTPUT > /dev/null
-        shell: /bin/bash
-      - if: ${{ steps.restore-work.outputs.cache-hit == false }}
+        shell: bash
+      - id: build-b
+        if: ${{ steps.restore-work.outputs.cache-hit == false }}
         name: Build
         run: |
           cd /tmp/build
@@ -105,7 +107,7 @@ jobs:
             } \
             || \
               echo cancelled=false | tee -a $GITHUB_OUTPUT > /dev/null
-        shell: /bin/bash
+        shell: bash
       - if: ${{ steps.build-a.outputs.cancelled == true || steps.build-b.outputs.cancelled == true }}
         name: Cache the building state
         uses: actions/cache/save@v4
