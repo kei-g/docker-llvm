@@ -149,8 +149,21 @@ jobs:
         name: Acquire ref and timestamp of the repository
         run: |
           cd /tmp/llvm-project
-          echo ref=$(TZ=UTC0 git log --pretty=format:%H -1) | tee -a $GITHUB_OUTPUT > /dev/null
-          echo timestamp=$(TZ=UTC0 git log --date='format-local:%Y%m%d%H%M%S' --pretty=format:%cd -1) | tee -a $GFITHUB_OUTPUT > /dev/null
+          echo ref=$( \
+            TZ=UTC0 git log \
+              --pretty=format:%H \
+              -1 \
+            ) \
+            | tee -a $GITHUB_OUTPUT \
+            >&2
+          echo timestamp=$( \
+            TZ=UTC0 git log \
+              --date=format-local:'%Y%m%d%H%M%S' \
+              --pretty=format:'%cd' \
+              -1 \
+            ) \
+            | tee -a $GITHUB_OUTPUT \
+            >&2
       - name: Cache the repository
         uses: actions/cache/save@v4
         with:
