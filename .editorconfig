@@ -15,5 +15,5 @@ trim_trailing_whitespace = false
 [*.sh]
 indent_style = tab
 
-[Dockerfile]
+[{Dockerfile,*.{json,yml}}]
 tab_width = 2
