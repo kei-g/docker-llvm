@@ -3,6 +3,7 @@ jobs:
     env:
       DEBCONF_NOWARNINGS: yes
       DEBIAN_FRONTEND: noninteractive
+      TIMEOUT_MINUTES: 5
     name: Build ${{ needs.llvm.outputs.gitref }}/${{ needs.llvm.outputs.timestamp }}
     needs:
       - llvm
@@ -31,8 +32,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           key: llvm-${{ needs.llvm.outputs.gitref }}-${{ needs.llvm.outputs.timestamp }}
-          path: |
-            /tmp/llvm-project
+          path: llvm-project
           restore-keys: |
             llvm-
       - id: restore-work
@@ -40,9 +40,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           key: work-${{ needs.llvm.outputs.gitref }}-${{ needs.llvm.outputs.timestamp }}
-          path: |
-            /tmp/build
-            /tmp/work
+          path: work
           restore-keys: |
             work-
       - env:
@@ -51,12 +49,12 @@ jobs:
         if: ${{ steps.restore-work.outputs.cache-hit == false }}
         name: Configure
         run: |
-          mkdir /tmp/build
-          cd /tmp/build
+          mkdir -p work/{build,criu,dist}
+          cd work/build
           cmake \
             -D CMAKE_BUILD_TYPE=Release \
             -D CMAKE_CXX_STANDARD=17 \
-            -D CMAKE_INSTALL_PREFIX=/tmp/dist \
+            -D CMAKE_INSTALL_PREFIX=../dist \
             -D LLVM_BUILD_INSTRUMENTED_COVERAGE=OFF \
             -D LLVM_BUILD_TESTS=OFF \
             -D LLVM_BUILD_TOOLS=ON \
@@ -71,38 +69,38 @@ jobs:
             -D LLVM_TARGETS_TO_BUILD=X86 \
             -D LLVM_VERSION_SUFFIX="++$timestamp+$gitref" \
             -G Ninja \
-            -S /tmp/llvm-project/llvm
+            -S ../../llvm-project/llvm
       - id: build-a
         if: ${{ steps.restore-work.outputs.cache-hit == true }}
         name: Continue building
         run: |
-          cd /tmp/build
-          sudo criu restore -D /tmp/work -j &
+          cd work/build
+          sudo criu restore -D ../criu -j &
           pid=$!
-          sleep $(( 90 * 60 ))
+          sleep $(( ${{ env.TIMEOUT_MINUTES }} * 60 ))
           status=$(jobs -l | grep $pid |sed -r 's/\s+/ /g' | cut -d' ' -f3)
           echo "status=$status" | tee -a $GITHUB_OUTPUT >&2
           [ "$status" = Running ] \
             && {
-              sudo rm -fr /tmp/work
-              mkdir /tmp/work
-              sudo criu dump -D /tmp/work -j -t $pid
+              sudo rm -fr ../criu
+              mkdir ../criu
+              sudo criu dump -D ../criu -j -t $pid
             } \
             || :
       - id: build-b
         if: ${{ steps.restore-work.outputs.cache-hit == false }}
         name: Build
         run: |
-          cd /tmp/build
+          cd work/build
           cmake --build . &
           pid=$!
-          sleep $(( 90 * 60 ))
+          sleep $(( ${{ env.TIMEOUT_MINUTES }} * 60 ))
           status=$(jobs -l | grep $pid |sed -r 's/\s+/ /g' | cut -d' ' -f3)
           echo "status=$status" | tee -a $GITHUB_OUTPUT >&2
           [ "$status" = Running ] \
             && {
-              [ -d /tmp/work ] || mkdir /tmp/work
-              sudo criu dump -D /tmp/work -j -t $pid
+              [ -d ../criu ] || mkdir ../criu
+              sudo criu dump -D ../criu -j -t $pid
             } \
             || :
       - if: ${{ steps.build-a.outputs.status == 'Running' || steps.build-b.outputs.status == 'Running' }}
@@ -110,23 +108,21 @@ jobs:
         uses: actions/cache/save@v4
         with:
           key: work-${{ needs.llvm.outputs.gitref }}-${{ needs.llvm.outputs.timestamp }}
-          path:
-            /tmp/build
-            /tmp/work
+          path: work
       - if: ${{ steps.build-a.outputs.status == 'done' || steps.build-b.outputs.status == 'done' }}
         name: Install
         run: |
-          cd /tmp/build
+          cd work/build
           cmake --install .
-          find /tmp/dist -type f -exec md5sum {} \; > md5sums
-          tar -C /tmp/dist -cf - . | xz -9cevz > /tmp/dist/data.tar.xz
-          mv md5sums /tmp/dist/
+          find ../dist -type f -exec md5sum {} \; > md5sums
+          tar -C ../dist -cf - . | xz -9cevz > ../dist/data.tar.xz
+          mv md5sums ../dist/
       - if: ${{ steps.build-a.outputs.status == 'done' || steps.build-b.outputs.status == 'done' }}
         name: Upload built files as an artifact
         uses: actions/upload-artifact@v4
         with:
           name: llvm-${{ needs.llvm.outputs.timestamp }}
-          path: /tmp/dist
+          path: work/dist
   llvm:
     name: Clone llvm repository
     outputs:
@@ -140,12 +136,11 @@ jobs:
               --depth=1 \
               --recursive \
               -o github \
-            https://github.com/llvm/llvm-project.git \
-            /tmp/llvm-project
+            https://github.com/llvm/llvm-project.git
       - id: git
         name: Acquire ref and timestamp of the repository
         run: |
-          cd /tmp/llvm-project
+          cd llvm-project
           echo ref=$( \
             TZ=UTC0 git log \
               --pretty=format:%H \
@@ -165,7 +160,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           key: llvm-${{ steps.git.outputs.ref }}-${{ steps.git.outputs.timestamp }}
-          path: /tmp/llvm-project
+          path: llvm-project
 name: Build
 on:
   workflow_dispatch:
