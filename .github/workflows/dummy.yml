@@ -80,17 +80,15 @@ jobs:
           sudo criu restore -D /tmp/work -j &
           pid=$!
           sleep $(( 90 * 60 ))
-          j=$(jobs -l | grep $pid || echo)
-          [[ $j =~ running ]] \
+          status=$(jobs -l | grep $pid |sed -r 's/\s+/ /g' | cut -d' ' -f3)
+          echo "status=$status" | tee -a $GITHUB_OUTPUT >&2
+          [ "$status" = Running ] \
             && {
-              rm -fr /tmp/work
+              sudo rm -fr /tmp/work
               mkdir /tmp/work
-              sudo criu dump -D /tmp/work -j -t $pid;
-              echo cancelled=true | tee -a $GITHUB_OUTPUT > /dev/null
+              sudo criu dump -D /tmp/work -j -t $pid
             } \
-            || \
-              echo cancelled=false | tee -a $GITHUB_OUTPUT > /dev/null
-        shell: bash
+            || :
       - id: build-b
         if: ${{ steps.restore-work.outputs.cache-hit == false }}
         name: Build
@@ -99,16 +97,15 @@ jobs:
           cmake --build . &
           pid=$!
           sleep $(( 90 * 60 ))
-          j=$(jobs -l | grep $pid || echo)
-          [[ $j =~ running ]] \
+          status=$(jobs -l | grep $pid |sed -r 's/\s+/ /g' | cut -d' ' -f3)
+          echo "status=$status" | tee -a $GITHUB_OUTPUT >&2
+          [ "$status" = Running ] \
             && {
-              sudo criu dump -D /tmp/work -j -t $pid;
-              echo cancelled=true | tee -a $GITHUB_OUTPUT > /dev/null
+              [ -d /tmp/work ] || mkdir /tmp/work
+              sudo criu dump -D /tmp/work -j -t $pid
             } \
-            || \
-              echo cancelled=false | tee -a $GITHUB_OUTPUT > /dev/null
-        shell: bash
-      - if: ${{ steps.build-a.outputs.cancelled == true || steps.build-b.outputs.cancelled == true }}
+            || :
+      - if: ${{ steps.build-a.outputs.status == 'Running' || steps.build-b.outputs.status == 'Running' }}
         name: Cache the building state
         uses: actions/cache/save@v4
         with:
@@ -116,7 +113,7 @@ jobs:
           path:
             /tmp/build
             /tmp/work
-      - if: ${{ steps.build-a.outputs.cancelled == false || steps.build-b.outputs.cancelled == false }}
+      - if: ${{ steps.build-a.outputs.status == 'done' || steps.build-b.outputs.status == 'done' }}
         name: Install
         run: |
           cd /tmp/build
@@ -124,7 +121,7 @@ jobs:
           find /tmp/dist -type f -exec md5sum {} \; > md5sums
           tar -C /tmp/dist -cf - . | xz -9cevz > /tmp/dist/data.tar.xz
           mv md5sums /tmp/dist/
-      - if: ${{ steps.build-a.outputs.cancelled == false || steps.build-b.outputs.cancelled == false }}
+      - if: ${{ steps.build-a.outputs.status == 'done' || steps.build-b.outputs.status == 'done' }}
         name: Upload built files as an artifact
         uses: actions/upload-artifact@v4
         with:
