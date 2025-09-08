@@ -3,13 +3,23 @@
   "caseSensitive": false,
   "userWords": [
     "buildx",
+    "cevz",
     "criu",
     "dockerhub",
     "esac",
     "flang",
     "jlumbroso",
+    "libc",
+    "libclc",
+    "libcxx",
+    "libcxxabi",
+    "libzstd",
+    "lldb",
+    "mlir",
+    "nowarnings",
+    "openmp",
     "snowstep",
-    "trixie"
+    "trixie",
   ],
   "version": "0.2"
 }

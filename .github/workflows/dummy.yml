@@ -3,8 +3,7 @@ jobs:
     env:
       DEBCONF_NOWARNINGS: yes
       DEBIAN_FRONTEND: noninteractive
-      TIMEOUT_MINUTES: 5
-    name: Build ${{ needs.llvm.outputs.gitref }}/${{ needs.llvm.outputs.timestamp }}
+    name: Build ${{ needs.llvm.outputs.timestamp }}/${{ needs.llvm.outputs.gitref }}
     needs:
       - llvm
     runs-on: ubuntu-latest
@@ -31,7 +30,7 @@ jobs:
         name: Restore the llvm source from cache
         uses: actions/cache/restore@v4
         with:
-          key: llvm-${{ needs.llvm.outputs.gitref }}-${{ needs.llvm.outputs.timestamp }}
+          key: llvm-${{ needs.llvm.outputs.timestamp }}--${{ needs.llvm.outputs.gitref }}
           path: llvm-project
           restore-keys: |
             llvm-
@@ -77,7 +76,7 @@ jobs:
           cd work/build
           sudo criu restore -D ../criu -j &
           pid=$!
-          sleep $(( ${{ env.TIMEOUT_MINUTES }} * 60 ))
+          sleep $(( ${{ inputs.timeout }} * 60 ))
           status=$(jobs -l | grep $pid |sed -r 's/\s+/ /g' | cut -d' ' -f3)
           echo "status=$status" | tee -a $GITHUB_OUTPUT >&2
           [ "$status" = Running ] \
@@ -94,7 +93,7 @@ jobs:
           cd work/build
           cmake --build . &
           pid=$!
-          sleep $(( ${{ env.TIMEOUT_MINUTES }} * 60 ))
+          sleep $(( ${{ inputs.timeout }} * 60 ))
           status=$(jobs -l | grep $pid |sed -r 's/\s+/ /g' | cut -d' ' -f3)
           echo "status=$status" | tee -a $GITHUB_OUTPUT >&2
           [ "$status" = Running ] \
@@ -130,7 +129,17 @@ jobs:
       timestamp: ${{ steps.git.outputs.timestamp }}
     runs-on: ubuntu-latest
     steps:
-      - name: Clone the repository
+      - id: restore-source
+        if: ${{ inputs.ignore-llvm-cache == false }}
+        name: Restore the llvm repository from cache
+        uses: actions/cache/restore@v4
+        with:
+          key: llvm-
+          path: llvm-project
+          restore-keys: |
+            llvm-
+      - if: ${{ inputs.ignore-llvm-cache == true || steps.restore-source.outputs.cache-hit != true }}
+        name: Clone the repository
         run: |
           git clone \
               --depth=1 \
@@ -156,11 +165,21 @@ jobs:
             ) \
             | tee -a $GITHUB_OUTPUT \
             >&2
-      - name: Cache the repository
+      - if: ${{ inputs.ignore-llvm-cache == true || steps.restore-source.outputs.cache-hit != true }}
+        name: Cache the repository
         uses: actions/cache/save@v4
         with:
-          key: llvm-${{ steps.git.outputs.ref }}-${{ steps.git.outputs.timestamp }}
+          key: llvm-${{ steps.git.outputs.timestamp }}-${{ steps.git.outputs.ref }}
           path: llvm-project
 name: Build
 on:
   workflow_dispatch:
+    inputs:
+      ignore-llvm-cache:
+        default: false
+        description: Ignore the cache of llvm-project source
+        type: boolean
+      timeout:
+        default: 90
+        description: Timeout in minutes
+        type: number
