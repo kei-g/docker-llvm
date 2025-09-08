@@ -138,7 +138,7 @@ jobs:
           path: llvm-project
           restore-keys: |
             llvm-
-      - if: ${{ inputs.ignore-llvm-cache == true || steps.restore-source.outputs.cache-hit != true }}
+      - if: ${{ inputs.ignore-llvm-cache == true || steps.restore-source.outputs.cache-hit == false }}
         name: Clone the repository
         run: |
           git clone \
@@ -165,7 +165,7 @@ jobs:
             ) \
             | tee -a $GITHUB_OUTPUT \
             >&2
-      - if: ${{ inputs.ignore-llvm-cache == true || steps.restore-source.outputs.cache-hit != true }}
+      - if: ${{ inputs.ignore-llvm-cache == true || steps.restore-source.outputs.cache-hit == false }}
         name: Cache the repository
         uses: actions/cache/save@v4
         with:
