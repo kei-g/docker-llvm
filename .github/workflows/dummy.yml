@@ -45,7 +45,7 @@ jobs:
       - env:
           gitref: ${{ needs.llvm.outputs.gitref }}
           timestamp: ${{ needs.llvm.outputs.timestamp }}
-        if: ${{ steps.restore-work.outputs.cache-hit == false }}
+        if: steps.restore-work.outputs.cache-hit == ''
         name: Configure
         run: |
           mkdir -p work/{build,criu,dist}
@@ -72,7 +72,7 @@ jobs:
       - env:
           timeout: ${{ inputs.timeout }}
         id: build-a
-        if: ${{ steps.restore-work.outputs.cache-hit == true }}
+        if: steps.restore-work.outputs.cache-hit == 'true'
         name: Continue building
         run: |
           cd work/build
@@ -91,7 +91,7 @@ jobs:
       - env:
           timeout: ${{ inputs.timeout }}
         id: build-b
-        if: ${{ steps.restore-work.outputs.cache-hit == false }}
+        if: steps.restore-work.outputs.cache-hit == ''
         name: Build
         run: |
           cd work/build
