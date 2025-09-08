@@ -69,15 +69,17 @@ jobs:
             -D LLVM_VERSION_SUFFIX="++$timestamp+$gitref" \
             -G Ninja \
             -S ../../llvm-project/llvm
-      - id: build-a
+      - env:
+          timeout: ${{ inputs.timeout }}
+        id: build-a
         if: ${{ steps.restore-work.outputs.cache-hit == true }}
         name: Continue building
         run: |
           cd work/build
           sudo criu restore -D ../criu -j &
           pid=$!
-          sleep $(( ${{ inputs.timeout }} * 60 ))
-          status=$(jobs -l | grep $pid |sed -r 's/\s+/ /g' | cut -d' ' -f3)
+          sleep $(( timeout * 60 ))
+          status=$(jobs -l | grep $pid | sed -r 's/\s+/ /g' | cut -d' ' -f3)
           echo "status=$status" | tee -a $GITHUB_OUTPUT >&2
           [ "$status" = Running ] \
             && {
@@ -86,15 +88,17 @@ jobs:
               sudo criu dump -D ../criu -j -t $pid
             } \
             || :
-      - id: build-b
+      - env:
+          timeout: ${{ inputs.timeout }}
+        id: build-b
         if: ${{ steps.restore-work.outputs.cache-hit == false }}
         name: Build
         run: |
           cd work/build
           cmake --build . &
           pid=$!
-          sleep $(( ${{ inputs.timeout }} * 60 ))
-          status=$(jobs -l | grep $pid |sed -r 's/\s+/ /g' | cut -d' ' -f3)
+          sleep $(( timeout * 60 ))
+          status=$(jobs -l | grep $pid | sed -r 's/\s+/ /g' | cut -d' ' -f3)
           echo "status=$status" | tee -a $GITHUB_OUTPUT >&2
           [ "$status" = Running ] \
             && {
@@ -177,9 +181,10 @@ on:
     inputs:
       ignore-llvm-cache:
         default: false
-        description: Ignore the cache of llvm-project source
+        description: Ignore llvm source cache
         type: boolean
       timeout:
         default: 90
-        description: Timeout in minutes
+        description: Timeout in minute
+        required: true
         type: number
