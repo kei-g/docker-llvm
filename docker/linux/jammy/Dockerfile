@@ -122,3 +122,5 @@ RUN apt-fast install --no-install-recommends --yes \
   && apt clean --yes \
   && rm -fr /var/lib/apt/lists/*
 COPY --from=flang_rt-builder /dist/libflang_rt.runtime.a /usr/lib/x86_64-linux-gnu/
+RUN echo /usr/lib/llvm-${MAJOR_VERSION:-22}/lib > /etc/ld.so.conf.d/llvm.conf \
+  && ldconfig
