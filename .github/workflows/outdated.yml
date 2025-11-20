@@ -25,16 +25,8 @@ jobs:
               || echo 0
           )
           echo "clang version (installed): $local" >&2
-          case ${{ inputs.name }} in
-            trixie)
-              repo=unstable
-              name=llvm-toolchain
-              ;;
-            *)
-              repo=${{ inputs.name }}
-              name=llvm-toolchain-${{ inputs.name }}
-              ;;
-          esac
+          repo=${{ inputs.name }}
+          name=llvm-toolchain-${{ inputs.name }}
           repo=https://apt.llvm.org/$repo/dists/$name
           url=$repo/main/binary-amd64/Packages.gz
           aria2c --quiet $url \
