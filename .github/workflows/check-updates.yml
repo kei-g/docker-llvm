@@ -7,7 +7,6 @@ jobs:
       focal: ${{ steps.dockerhub.outputs.focal }}
       jammy: ${{ steps.dockerhub.outputs.jammy }}
       noble: ${{ steps.dockerhub.outputs.noble }}
-      trixie: ${{ steps.dockerhub.outputs.trixie }}
     runs-on: ubuntu-latest
     steps:
       - id: dockerhub
@@ -82,13 +81,6 @@ jobs:
     with:
       json: ${{ needs.dockerhub.outputs.noble }}
       name: noble
-  outdated_trixie:
-    needs:
-      - dockerhub
-    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
-    with:
-      json: ${{ needs.dockerhub.outputs.trixie }}
-      name: trixie
   patch:
     if: ${{ needs.publish-if-outdated.outputs.outdated == 'true' }}
     name: Patch the description to DockerHub
@@ -109,9 +101,8 @@ jobs:
       - outdated_focal
       - outdated_jammy
       - outdated_noble
-      - outdated_trixie
     outputs:
-      outdated: ${{ steps.outdated.outputs.bookworm == 'true' || steps.outdated.outputs.bullseye == 'true' || steps.outdated.outputs.focal == 'true' || steps.outdated.outputs.jammy == 'true' || steps.outdated.outputs.noble == 'true' || steps.outdated.outputs.trixie == 'true' }}
+      outdated: ${{ steps.outdated.outputs.bookworm == 'true' || steps.outdated.outputs.bullseye == 'true' || steps.outdated.outputs.focal == 'true' || steps.outdated.outputs.jammy == 'true' || steps.outdated.outputs.noble == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - env:
@@ -184,7 +175,6 @@ jobs:
       - outdated_focal
       - outdated_jammy
       - outdated_noble
-      - outdated_trixie
       - publish-if-outdated
     runs-on: ubuntu-latest
     steps:
