@@ -189,26 +189,32 @@ jobs:
             | tee -a $GITHUB_OUTPUT \
             >&2
         shell: bash
-      - name: Checkout the repository
+      - if: ${{ steps.outdated.outputs.value == 'true' }}
+        name: Checkout the repository
         uses: actions/checkout@v6
         with:
           fetch-depth: 1
           ref: main
-      - name: Setup Docker Buildx
+      - if: ${{ steps.outdated.outputs.value == 'true' }}
+        name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Copy Dockerfile
+      - if: ${{ steps.outdated.outputs.value == 'true' }}
+        name: Copy Dockerfile
         run: |
           cp docker/linux/${{ matrix.name }}/Dockerfile ./
-      - name: Login to DockerHub
+      - if: ${{ steps.outdated.outputs.value == 'true' }}
+        name: Login to DockerHub
         uses: docker/login-action@v3
         with:
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-      - name: Free disk space
+      - if: ${{ steps.outdated.outputs.value == 'true' }}
+        name: Free disk space
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: true
       - id: tags
+        if: ${{ steps.outdated.outputs.value == 'true' }}
         name: Decide tags
         uses: docker/metadata-action@v5
         with:
@@ -217,7 +223,8 @@ jobs:
             type=raw,value=latest
             type=raw,value=${{ matrix.name }}
             type=raw,value=${{ steps.outdated.outputs.VERSION }}
-      - name: Run Buildx and Push it to DockerHub
+      - if: ${{ steps.outdated.outputs.value == 'true' }}
+        name: Run Buildx and Push it to DockerHub
         uses: docker/build-push-action@v6
         with:
           build-args: |
