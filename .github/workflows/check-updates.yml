@@ -15,33 +15,63 @@ jobs:
           api=https://hub.docker.com/v2/namespaces
           repo=$api/${{ secrets.DOCKERHUB_USERNAME }}/repositories
           declare -A apt
-          declare -A llvm
-          while IFS='=' read -r image tag digest date; do
-            [[ $tag =~ ^[0-9.]+$ ]] && continue
-            last=$(date --date="$date" '+%s')
-            case $image in
-              apt-fast) apt[$tag]=$last;;
-              llvm) llvm[$tag]="$last,$digest";;
-            esac
+          while read -r codename datetime; do
+            apt[$codename]=$datetime
           done < <(
-            for image in apt-fast llvm; do \
-              url="$repo/$image/tags?page_size=100"; \
-              while [[ "$url" != "null" ]]; do \
-                json=$(curl -s "$url"); \
-                jq -Mcr ".results|map(\"$image=\(.name)=\([.images[]|select(.architecture==\"amd64\")]|max_by(.last_pushed)|\"\(.digest)=\(.last_pushed)\")\")|@tsv" \
-                  <<< $json \
-                  | sed -r 's/\t/\n/g'; \
-                url=$(jq -Mcr '.next' <<< $json); \
-              done; \
+            for dist in debian:bookworm debian:bullseye ubuntu:focal ubuntu:jammy ubuntu:noble; do
+              distro=${dist%:*}
+              codename=${dist#*:}
+              version=$(
+                grep -P ",$codename," \
+                  < /usr/share/distro-info/$distro.csv \
+                  | sed -r 's/(\s+[^,]*)?,.*$//'
+              )
+              tags=$repo/apt-fast/tags
+              digest=$(curl -s $tags/$distro-$version-latest | jq -Mcr '.digest')
+              url=$tags\?page=1\&page_size=100
+              while [[ $url != null ]]; do
+                json=$(curl -s $url)
+                name=$(
+                  jq -Mcr \
+                    ".results[]|select(.digest==\"$digest\")|select(.name|endswith(\"-latest\")|not).name" \
+                    <<< $json
+                )
+                [[ -z $name ]] \
+                  || {
+                    datetime=${name##*-}
+                    echo $codename=$datetime
+                    break
+                  }
+                url=$(jq -Mcr '.next' <<< $json)
+              done
             done
           )
-          for tag in "${!llvm[@]}"; do
-            value=${llvm[$tag]}
-            last=${value%,*}
+          declare -A llvm
+          while IFS='=' read -r name digest last_pushed; do
+            [[ $name =~ ^[0-9.]+$ ]] && continue
+            datetime=$(date --date="$last_pushed" '+%Y%m%d%H%M%S')
+            llvm[$name]="$datetime,$digest"
+          done < <(
+            url=$repo/llvm/tags\?page=1\&page_size=100
+            while [[ $url != null ]]; do
+              json=$(curl -s $url)
+              jq -Mcr \
+                ".results|map(\"\(.name)=\([.images[]|select(.architecture==\"amd64\")]|max_by(.last_pushed)|\"\(.digest)=\(.last_pushed)\")\")|@tsv" \
+                <<< $json \
+                | sed -r 's/\t/\n/g'
+              url=$(jq -Mcr '.next' <<< $json)
+            done
+          )
+          boolean=(true false)
+          for name in "${!llvm[@]}"; do
+            value=${llvm[$name]}
+            datetime=${value%,*}
             digest=${value#*,}
-            boolean=(true false)
-            outdated=$([[ $last -lt ${apt[$tag]} ]]; echo $?)
-            echo "$tag={\"digest\":\"$digest\",\"outdated\":${boolean[$outdated]}}"
+            outdated=$(
+              [[ $datetime -lt ${apt[$name]} ]]
+              echo $?
+            )
+            echo "$name={\"digest\":\"$digest\",\"outdated\":${boolean[$outdated]}}"
           done \
             | tee -a $GITHUB_OUTPUT \
             >&2
