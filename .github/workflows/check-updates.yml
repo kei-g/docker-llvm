@@ -15,8 +15,12 @@ jobs:
           api=https://hub.docker.com/v2/namespaces
           repo=$api/${{ secrets.DOCKERHUB_USERNAME }}/repositories
           declare -A apt
-          while read -r codename datetime; do
-            apt[$codename]=$datetime
+          declare -A llvm
+          while read -r image codename datetime digest; do
+            case $image in
+              apt-fast) apt[$codename]=$datetime;;
+              llvm) llvm[$codename]="$digest,$datetime";;
+            esac
           done < <(
             for dist in debian:bookworm debian:bullseye ubuntu:focal ubuntu:jammy ubuntu:noble; do
               distro=${dist%:*}
@@ -26,40 +30,26 @@ jobs:
                   < /usr/share/distro-info/$distro.csv \
                   | sed -r 's/(\s+[^,]*)?,.*$//'
               )
-              tags=$repo/apt-fast/tags
-              digest=$(curl -s $tags/$distro-$version-latest | jq -Mcr '.digest')
-              url=$tags\?page=1\&page_size=100
-              while [[ $url != null ]]; do
-                json=$(curl -s $url)
-                name=$(
-                  jq -Mcr \
-                    ".results[]|select(.digest==\"$digest\")|select(.name|endswith(\"-latest\")|not).name" \
-                    <<< $json
-                )
-                [[ -z $name ]] \
-                  || {
-                    datetime=${name##*-}
-                    echo $codename=$datetime
-                    break
-                  }
-                url=$(jq -Mcr '.next' <<< $json)
+              for image in apt-fast llvm; do
+                tags=$repo/$image/tags
+                digest=$(curl -s $tags/$distro-$version-latest | jq -Mcr '.digest')
+                url=$tags\?page=1\&page_size=100
+                while [[ $url != null ]]; do
+                  json=$(curl -s $url)
+                  name=$(
+                    jq -Mcr \
+                      ".results[]|select(.digest==\"$digest\")|select(.name|endswith(\"-latest\")|not).name" \
+                      <<< $json
+                  )
+                  [[ -z $name ]] \
+                    || {
+                      datetime=${name##*-}
+                      echo "$image $codename $datetime $digest"
+                      break
+                    }
+                  url=$(jq -Mcr '.next' <<< $json)
+                done
               done
-            done
-          )
-          declare -A llvm
-          while IFS='=' read -r name digest last_pushed; do
-            [[ $name =~ ^[0-9.]+$ ]] && continue
-            datetime=$(date --date="$last_pushed" '+%Y%m%d%H%M%S')
-            llvm[$name]="$datetime,$digest"
-          done < <(
-            url=$repo/llvm/tags\?page=1\&page_size=100
-            while [[ $url != null ]]; do
-              json=$(curl -s $url)
-              jq -Mcr \
-                ".results|map(\"\(.name)=\([.images[]|select(.architecture==\"amd64\")]|max_by(.last_pushed)|\"\(.digest)=\(.last_pushed)\")\")|@tsv" \
-                <<< $json \
-                | sed -r 's/\t/\n/g'
-              url=$(jq -Mcr '.next' <<< $json)
             done
           )
           boolean=(true false)
@@ -116,14 +106,13 @@ jobs:
     name: Patch the description to DockerHub
     needs:
       - publish-if-outdated
-      - publish-latest
     secrets:
       DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
     uses: ./.github/workflows/patch.yml
   publish-if-outdated:
     continue-on-error: true
-    name: Publish if ${{ matrix.name }} has outdated
+    name: Publish if ${{ matrix.distro }}:${{ matrix.codename }} has outdated
     needs:
       - dockerhub
       - outdated_bookworm
@@ -140,9 +129,17 @@ jobs:
         id: outdated
         name: Necessary for update
         run: |
-          jq -Mcr '.outdated_${{ matrix.name }}.outputs|"MAJOR_VERSION=\(.MAJOR_VERSION)\nVERSION=\(.VERSION)\n${{ matrix.name }}=\(.OUTDATED)\n value=\(.OUTDATED)"' \
+          jq -Mcr '.outdated_${{ matrix.codename }}.outputs|"MAJOR_VERSION=\(.MAJOR_VERSION)\n datetime=\(.VERSION)\n value=\(.OUTDATED)"' \
             <<< $NEEDS \
             | sed -r 's/^\s+//g' \
+            | tee -a $GITHUB_OUTPUT \
+            >&2
+          version=$(
+            grep -P ",${{ matrix.codename }}," \
+              < /usr/share/distro-info/${{ matrix.distro }}.csv \
+              | sed -r 's/(\s+[^,]*)?,.*$//'
+          )
+          echo version=$version \
             | tee -a $GITHUB_OUTPUT \
             >&2
         shell: bash
@@ -158,7 +155,7 @@ jobs:
       - if: ${{ steps.outdated.outputs.value == 'true' }}
         name: Copy Dockerfile
         run: |
-          cp docker/linux/${{ matrix.name }}/Dockerfile ./
+          cp docker/linux/${{ matrix.codename }}/Dockerfile ./
       - if: ${{ steps.outdated.outputs.value == 'true' }}
         name: Login to DockerHub
         uses: docker/login-action@v3
@@ -176,7 +173,8 @@ jobs:
         with:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/llvm
           tags: |
-            type=raw,value=${{ matrix.name }}
+            type=raw,value=${{ matrix.distro }}-${{ steps.outdated.outputs.version }}-latest
+            type=raw,value=${{ matrix.distro }}-${{ steps.outdated.outputs.version }}-${{ steps.outdated.outputs.datetime }}
       - if: ${{ steps.outdated.outputs.value == 'true' }}
         name: Run Buildx and Push it to DockerHub
         uses: docker/build-push-action@v6
@@ -190,84 +188,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        name:
-          - bullseye
-          - focal
-          - jammy
-          - noble
-  publish-latest:
-    continue-on-error: true
-    name: Publish if ${{ matrix.name }} has outdated
-    needs:
-      - dockerhub
-      - outdated_bookworm
-      - outdated_bullseye
-      - outdated_focal
-      - outdated_jammy
-      - outdated_noble
-      - publish-if-outdated
-    runs-on: ubuntu-latest
-    steps:
-      - env:
-          NEEDS: ${{ toJSON(needs) }}
-        id: outdated
-        name: Necessary for update
-        run: |
-          jq -Mcr '.outdated_${{ matrix.name }}.outputs|"MAJOR_VERSION=\(.MAJOR_VERSION)\nVERSION=\(.VERSION)\n${{ matrix.name }}=\(.OUTDATED)\n value=\(.OUTDATED)"' \
-            <<< $NEEDS \
-            | sed -r 's/^\s+//g' \
-            | tee -a $GITHUB_OUTPUT \
-            >&2
-        shell: bash
-      - if: ${{ steps.outdated.outputs.value == 'true' }}
-        name: Checkout the repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-          ref: main
-      - if: ${{ steps.outdated.outputs.value == 'true' }}
-        name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - if: ${{ steps.outdated.outputs.value == 'true' }}
-        name: Copy Dockerfile
-        run: |
-          cp docker/linux/${{ matrix.name }}/Dockerfile ./
-      - if: ${{ steps.outdated.outputs.value == 'true' }}
-        name: Login to DockerHub
-        uses: docker/login-action@v3
-        with:
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-      - if: ${{ steps.outdated.outputs.value == 'true' }}
-        name: Free disk space
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: true
-      - id: tags
-        if: ${{ steps.outdated.outputs.value == 'true' }}
-        name: Decide tags
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/llvm
-          tags: |
-            type=raw,value=latest
-            type=raw,value=${{ matrix.name }}
-            type=raw,value=${{ steps.outdated.outputs.VERSION }}
-      - if: ${{ steps.outdated.outputs.value == 'true' }}
-        name: Run Buildx and Push it to DockerHub
-        uses: docker/build-push-action@v6
-        with:
-          build-args: |
-            MAJOR_VERSION=${{ steps.outdated.outputs.MAJOR_VERSION }}
-          context: .
-          push: true
-          tags: |
-            ${{ steps.tags.outputs.tags }}
-    strategy:
-      fail-fast: false
-      matrix:
-        name:
-          - bookworm
+        include:
+          - codename: bookworm
+            distro: debian
+          - codename: bullseye
+            distro: debian
+          - codename: focal
+            distro: ubuntu
+          - codename: jammy
+            distro: ubuntu
+          - codename: noble
+            distro: ubuntu
 name: Check updates
 on:
   schedule:
