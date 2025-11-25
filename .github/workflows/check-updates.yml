@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: dockerhub
-        name: Acquire and compare
+        name: Acquire the latest images information from DockerHub to detect older snowstep/llvm than snowstep/apt-fast
         run: |
           api=https://hub.docker.com/v2/namespaces
           repo=$api/${{ secrets.DOCKERHUB_USERNAME }}/repositories
@@ -19,7 +19,7 @@ jobs:
           while read -r image codename datetime digest; do
             case $image in
               apt-fast) apt[$codename]=$datetime;;
-              llvm) llvm[$codename]="$digest,$datetime";;
+              llvm) llvm[$codename]="$datetime,$digest";;
             esac
           done < <(
             for dist in debian:bookworm debian:bullseye ubuntu:focal ubuntu:jammy ubuntu:noble; do
@@ -52,6 +52,16 @@ jobs:
               done
             done
           )
+          echo ::group::apt-fast >&2
+          for codename in ${!apt[@]}; do
+            echo $codename datetime=${apt[$codename]} >&2
+          done
+          echo ::endgroup:: >&2
+          echo ::group::llvm >&2
+          for codename in ${!llvm[@]}; do
+            echo $codename \(datetime,digest\)=\(${llvm[$codename]}\) >&2
+          done
+          echo ::endgroup:: >&2
           boolean=(true false)
           for name in "${!llvm[@]}"; do
             value=${llvm[$name]}
