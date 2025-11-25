@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - id: dockerhub
-        name: Acquire and compare
+        name: Acquire the latest images information from DockerHub to detect older snowstep/llvm than snowstep/apt-fast
         run: |
           api=https://hub.docker.com/v2/namespaces
           repo=$api/${{ secrets.DOCKERHUB_USERNAME }}/repositories
