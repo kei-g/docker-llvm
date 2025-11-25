@@ -1,0 +1,47 @@
+jobs:
+  update:
+    name: Update
+    runs-on: ubuntu-latest
+    steps:
+      - id: previous
+        name: Restore the repository from cache
+        uses: actions/cache/restore@v4
+        with:
+          key: llvm-source-
+          path: llvm-project
+          restore-keys: llvm-source-*
+      - if: ${{ steps.previous.outputs.cache-matched-key == '' }}
+        name: Clone the repository if necessary
+        run: |
+          git clone --recursive https://github.com/llvm/llvm-project.git
+      - if: ${{ steps.previous.outputs.cache-matched-key != '' }}
+        name: Pull
+        run: |
+          cd llvm-project
+          echo ::group::git fetch >&2
+          git fetch --all --porcelain --progress --prune
+          echo ::endgroup:: >&2
+          echo ::group::git pull >&2
+          git pull --progress --rebase
+          echo ::endgroup:: >&2
+      - id: last-commit
+        name: Acquire the latest commit datetime
+        run: |
+          cd llvm-project
+          iso=$(git log --date=iso-local --format=%cd -1)
+          datetime=$(date --date="$iso" --utc '+%Y%m%d%H%M%S')
+          echo ::group::git log
+          echo "\"$iso\" => $datetime"
+          echo ::endgroup::
+          echo key=llvm-source-$datetime >> $GITHUB_OUTPUT
+      - if: ${{ steps.last-commit.outputs.key != steps.previous.outputs.cache-matched-key }}
+        name: Save the repository to cache
+        uses: actions/cache/save@v4
+        with:
+          key: ${{ steps.last-commit.outputs.key }}
+          path: llvm-project
+name: LLVM source
+on:
+  schedule:
+    - cron: '10,40 * * * *'
+  workflow_dispatch:

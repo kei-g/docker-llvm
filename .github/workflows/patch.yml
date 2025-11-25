@@ -14,16 +14,18 @@ jobs:
           description: Debian/Ubuntu with the latest LLVM installed.
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
           repo: llvm
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          username: ${{ inputs.DOCKERHUB_USERNAME }}
 name: Update the description on DockerHub
 on:
   push:
     paths:
       - README.md
   workflow_call:
+    inputs:
+      DOCKERHUB_USERNAME:
+        required: true
+        type: string
     secrets:
       DOCKERHUB_PASSWORD:
-        required: true
-      DOCKERHUB_USERNAME:
         required: true
   workflow_dispatch:

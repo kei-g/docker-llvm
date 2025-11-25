@@ -1,11 +1,11 @@
 ARG MAJOR_VERSION
 
 # Install the latest LLVM
-FROM snowstep/apt-fast:jammy AS common
+FROM snowstep/apt-fast:jammy
 
-ENV DEBCONF_NOWARNINGS=yes
-ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-fast update \
+RUN DEBCONF_NOWARNINGS=yes \
+  && DEBIAN_FRONTEND=noninteractive \
+  && apt-fast update \
   && apt-fast upgrade --yes \
   && apt-fast install --no-install-recommends --yes \
     gnupg \
@@ -14,20 +14,19 @@ RUN apt-fast update \
   && llvm=apt.llvm.org \
   && aria2c https://$llvm/$keyname.key \
   && gpg --import $keyname.key \
-  && rm -f $keyname \
+  && rm -f $keyname.key \
   && [ -d $keydir ] \
     || mkdir -pv $keydir \
   && gpg --export > $keydir/$keyname \
-  && distro=$(grep -E '^VERSION_CODENAME=.+$' < /etc/os-release) \
-  && distro=${distro#*=} \
+  && codename=$(grep -P '(?<=VERSION_CODENAME=).+$' -o < /etc/os-release) \
   && for what in deb deb-src; do \
       printf \
         '%s [signed-by=%s] http://%s/%s/ llvm-toolchain-%s main\n' \
           $what \
           $keydir/$keyname \
           $llvm \
-          $distro \
-          $distro; \
+          $codename \
+          $codename; \
     done > /etc/apt/sources.list.d/llvm-toolchain.list \
   && apt-fast update \
   && apt-fast upgrade --yes \
@@ -36,6 +35,7 @@ RUN apt-fast update \
     clang-format-${MAJOR_VERSION:-22} \
     clang-tidy-${MAJOR_VERSION:-22} \
     clangd-${MAJOR_VERSION:-22} \
+    flang-${MAJOR_VERSION:-22} \
     libunwind-${MAJOR_VERSION:-22}-dev \
     lld-${MAJOR_VERSION:-22} \
     lldb-${MAJOR_VERSION:-22} \
@@ -58,60 +58,7 @@ while [[ $i -lt $# ]]; do \
   ln -fs $name-${MAJOR_VERSION:-22} /usr/bin/$name; \
   i=$((i + 1)); \
 done \
-' -- {} +
-
-# Build the fortran runtime library
-FROM common AS flang_rt-builder
-
-COPY pip.conf /etc/
-RUN apt-fast install --no-install-recommends --yes \
-    git \
-    libedit-dev \
-    libxml2-dev \
-    libzstd-dev \
-    python3-pip \
-    zlib1g-dev \
-    zstd \
-  && pip install \
-    cmake \
-    ninja \
-  && apt clean --yes \
-  && rm -fr /var/lib/apt/lists/* \
-  && git clone --depth=1 https://github.com/llvm/llvm-project.git \
-  && mkdir build dist \
-  && cd build \
-  && cmake \
-    -D CMAKE_BUILD_TYPE=Release \
-    -D CMAKE_CXX_COMPILER=clang++ \
-    -D CMAKE_CXX_STANDARD=17 \
-    -D CMAKE_C_COMPILER=clang \
-    -D CMAKE_INSTALL_PREFIX=/dist \
-    -D LLVM_BUILD_INSTRUMENTED_COVERAGE=OFF \
-    -D LLVM_BUILD_TESTS=OFF \
-    -D LLVM_BUILD_TOOLS=OFF \
-    -D LLVM_ENABLE_LIBCXX=ON \
-    -D LLVM_ENABLE_PROJECTS="flang" \
-    -D LLVM_ENABLE_RUNTIMES="compiler-rt;flang-rt;openmp" \
-    -D LLVM_INCLUDE_BENCHMARKS=OFF \
-    -D LLVM_INCLUDE_EXAMPLES=OFF \
-    -D LLVM_INCLUDE_TESTS=OFF \
-    -D LLVM_INSTALL_UTILS=OFF \
-    -D LLVM_TARGETS_TO_BUILD=X86 \
-    -G Ninja \
-    -S /llvm-project/llvm \
-  && ninja flang-rt \
-  && ninja install \
-  && major_version=$( \
-    grep -P '^\s+set\(LLVM_VERSION_MAJOR\s+[1-9][0-9]*\)$' \
-      < /llvm-project/cmake/Modules/LLVMVersion.cmake \
-      | sed -r 's/^\s+set\(LLVM_VERSION_MAJOR\s([1-9][0-9]*)\)$/\1/' \
-  ) \
-  && mv /dist/lib/clang/$major_version/lib/x86_64-unknown-linux-gnu/libflang_rt.runtime.a /dist/
-
-# Copy libflang_rt.runtime.a
-FROM common
-RUN apt-fast install --no-install-recommends --yes \
-    flang-${MAJOR_VERSION:-22} \
+' -- {} + \
   && grep -P '/bin/([^-]+-)+22$' /var/lib/dpkg/info/flang-22.list \
     | while read -r full; do \
       dir=${full%/*}; \
@@ -120,7 +67,6 @@ RUN apt-fast install --no-install-recommends --yes \
       ln -fs $name-${MAJOR_VERSION:-22} $dir/$name; \
     done \
   && apt clean --yes \
-  && rm -fr /var/lib/apt/lists/*
-COPY --from=flang_rt-builder /dist/libflang_rt.runtime.a /usr/lib/x86_64-linux-gnu/
-RUN echo /usr/lib/llvm-${MAJOR_VERSION:-22}/lib > /etc/ld.so.conf.d/llvm.conf \
+  && rm -fr /var/lib/apt/lists/* \
+  && echo /usr/lib/llvm-${MAJOR_VERSION:-22}/lib > /etc/ld.so.conf.d/llvm.conf \
   && ldconfig

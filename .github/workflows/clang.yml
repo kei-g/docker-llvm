@@ -1,0 +1,141 @@
+jobs:
+  build:
+    if: ${{ needs.outdated.outputs.outdated == 'true' }}
+    name: Build docker image
+    needs:
+      - outdated
+    outputs:
+      commit-hash: ${{ steps.version.outputs.commit-hash }}
+      datetime: ${{ steps.version.outputs.datetime }}
+      major-version: ${{ steps.version.outputs.major-version }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - name: Copy Dockerfile
+        run: |
+          cp docker/linux/${{ inputs.codename }}/Dockerfile ./
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - id: build
+        name: Build
+        uses: docker/build-push-action@v6
+        with:
+          build-args: |
+            MAJOR_VERSION=${{ needs.outdated.outputs.major-version }}
+          cache-from: type=gha
+          cache-to: type=gha
+          context: .
+          load: true
+          push: false
+      - id: version
+        name: Get clang version
+        run: |
+          version=$(
+            docker run \
+                    --rm \
+                    --tty \
+                  ${{ steps.build.outputs.imageid }} \
+                clang --version \
+              | grep -P '(?<=version\s).+$' -o
+          )
+          echo ::group::output
+          {
+            echo commit-hash=$(grep -P '(?<=\d{14}\+)[\da-f]{11}' -o <<< $version)
+            echo datetime=$(grep -P '(?<=\+\+)\d{14}' -o <<< $version)
+            echo major-version=$(grep -P '^[1-9]\d*' -o <<< $version)
+            echo value=$(grep -P '^[^\s]+' -o <<< $version)
+          } | tee -a $GITHUB_OUTPUT
+          echo ::endgroup::
+        shell: bash
+  outdated:
+    uses: ./.github/workflows/outdated.yml
+    with:
+      DOCKERHUB_USERNAME: ${{ inputs.DOCKERHUB_USERNAME }}
+      codename: ${{ inputs.codename }}
+  push:
+    if: ${{ needs.outdated.outputs.outdated == 'true' }}
+    name: Push docker image
+    needs:
+      - build
+      - outdated
+    outputs:
+      container: ${{ inputs.DOCKERHUB_USERNAME }}/clang@${{ steps.push.outputs.digest }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - name: Copy Dockerfile
+        run: |
+          cp docker/linux/${{ inputs.codename }}/Dockerfile ./
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          username: ${{ inputs.DOCKERHUB_USERNAME }}
+      - id: tags
+        name: Decide tags
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ inputs.DOCKERHUB_USERNAME }}/clang
+          tags: |
+            type=raw,value=${{ inputs.codename }}
+            type=raw,value=${{ needs.outdated.outputs.distro-name }}-latest
+            type=raw,value=${{ needs.outdated.outputs.distro-name }}-${{ needs.build.outputs.datetime }}
+      - id: push
+        name: Push
+        uses: docker/build-push-action@v6
+        with:
+          build-args: |
+            MAJOR_VERSION=${{ needs.outdated.outputs.major-version }}
+          cache-from: type=gha
+          context: .
+          push: true
+          tags: |
+            ${{ steps.tags.outputs.tags }}
+name: clang
+on:
+  workflow_call:
+    inputs:
+      DOCKERHUB_USERNAME:
+        required: true
+        type: string
+      codename:
+        required: true
+        type: string
+    outputs:
+      commit-hash:
+        value: ${{ jobs.build.outputs.commit-hash }}
+      container:
+        value: ${{ jobs.push.outputs.container }}
+      datetime:
+        value: ${{ jobs.build.outputs.datetime }}
+      distro-name:
+        value: ${{ jobs.outdated.outputs.distro-name }}
+      major-version:
+        value: ${{ jobs.build.outputs.major-version }}
+      outdated:
+        value: ${{ jobs.outdated.outputs.outdated }}
+    secrets:
+      DOCKERHUB_PASSWORD:
+        required: true
+  workflow_dispatch:
+    inputs:
+      codename:
+        description: >
+          Release codename of debian like distributions.
+        options:
+          - bookworm
+          - bullseye
+          - focal
+          - jammy
+          - noble
+          - trixie
+        required: true
+        type: choice
