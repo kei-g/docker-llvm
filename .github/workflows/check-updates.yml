@@ -52,6 +52,16 @@ jobs:
               done
             done
           )
+          echo ::group::apt-fast >&2
+          for codename in ${!apt[@]}; do
+            echo $codename datetime=${apt[$codename]} >&2
+          done
+          echo ::endgroup:: >&2
+          echo ::group::llvm >&2
+          for codename in ${!llvm[@]}; do
+            echo $codename \(datetime,digest\)=\(${llvm[$codename]}\) >&2
+          done
+          echo ::endgroup:: >&2
           boolean=(true false)
           for name in "${!llvm[@]}"; do
             value=${llvm[$name]}
