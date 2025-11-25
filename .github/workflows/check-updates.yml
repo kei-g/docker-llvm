@@ -19,7 +19,7 @@ jobs:
           while read -r image codename datetime digest; do
             case $image in
               apt-fast) apt[$codename]=$datetime;;
-              llvm) llvm[$codename]="$digest,$datetime";;
+              llvm) llvm[$codename]="$datetime,$digest";;
             esac
           done < <(
             for dist in debian:bookworm debian:bullseye ubuntu:focal ubuntu:jammy ubuntu:noble; do
