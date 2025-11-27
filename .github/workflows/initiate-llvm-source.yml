@@ -1,0 +1,134 @@
+jobs:
+  initiate:
+    name: Initiate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+      - name: Pull docker images
+        run: |
+          for codename in bookworm bullseye focal jammy noble trixie; do
+            docker pull snowstep/llvm:$codename
+          done
+      - name: Checkout the llvm repository
+        run: |
+          git clone \
+              --recursive \
+              https://github.com/llvm/llvm-project.git
+      - id: datetime
+        name: Get the last commit datetime
+        run: |
+          cd llvm-project
+          datetime=$(git --no-pager log --date=iso-local --pretty=%cd -1)
+          echo value=$(date --date="$datetime" --utc '+%Y%m%d%H%M%S') \
+            | tee -a $GITHUB_OUTPUT \
+            >&2
+      - id: container
+        name: Start containers
+        run: |
+          for codename in bookworm bullseye focal jammy noble trixie; do
+            echo $codename=$(
+              docker run \
+                  --detach \
+                  --interactive \
+                  --tty \
+                snowstep/llvm:$codename
+            )
+          done \
+            | tee -a $GITHUB_OUTPUT \
+            >&2
+      - env:
+          container: ${{ toJSON(steps.container.outputs) }}
+        name: Install packages
+        run: |
+          for codename in bookworm bullseye focal jammy noble trixie; do
+            docker exec \
+              $(jq -Mcr ".$codename" <<< $container) \
+              sh -s << _EOT_
+          apt-fast update
+          apt-fast install --no-install-recommends --yes \
+            git \
+            jq \
+            libedit-dev \
+            libxml2-dev \
+            libzstd-dev \
+            python3-pip \
+            zlib1g-dev \
+            zstd
+          apt clean --yes
+          rm -fr /var/lib/apt/lists/*
+          pip install cmake ninja
+          _EOT_
+          done
+        shell: bash
+      - env:
+          container: ${{ toJSON(steps.container.outputs) }}
+        name: Write the llvm repository into containers
+        run: |
+          for codename in bookworm bullseye focal jammy noble trixie; do
+            docker cp \
+                --archive \
+                --follow-link \
+              /llvm-project \
+              $(jq -Mcr ".$codename" <<< $container):/
+          done
+        shell: bash
+      - env:
+          container: ${{ toJSON(steps.container.outputs) }}
+        name: Stop containers
+        run: |
+          for codename in bookworm bullseye focal jammy noble trixie; do
+            docker kill $(jq -Mcr ".$codename" <<< $container)
+          done
+        shell: bash
+      - env:
+          container: ${{ toJSON(steps.container.outputs) }}
+        name: Commit containers to images
+        run: |
+          for codename in bookworm bullseye focal jammy noble trixie; do
+            docker commit \
+              $(jq -Mcr ".$codename" <<< $container) \
+              snowstep/llvm-source:$codename
+          done
+        shell: bash
+      - env:
+          container: ${{ toJSON(steps.container.outputs) }}
+        name: Remove containers
+        run: |
+          for codename in bookworm bullseye focal jammy noble trixie; do
+            docker rm $(jq -Mcr ".$codename" <<< $container)
+          done
+        shell: bash
+      - name: Login to DockerHub
+        run: |
+          password="${{ secrets.DOCKERHUB_PASSWORD }}"
+          docker login \
+              --password-stdin \
+              -u ${{ secrets.DOCKERHUB_USERNAME }} \
+            <<< $password
+        shell: bash
+      - name: Push images
+        run: |
+          for codename in bookworm bullseye focal jammy noble trixie; do
+            matched=$(grep -PR ",$codename," /usr/share/distro-info)
+            filepath=${matched%:*}
+            filename=${filepath##*/}
+            distro=${filename%.*}
+            version=$(grep -P '^[1-9]\d*(\.\d+)?' -o <<< ${matched#*:})
+            source=snowstep/llvm-source:$codename
+            docker push $source
+            for suffix in ${{ steps.datetime.outputs.value }} latest; do
+              dest=snowstep/llvm-source:$distro-$version-$suffix
+              docker tag $source $dest
+              docker push $dest
+            done
+          done
+        shell: bash
+      - name: Logout
+        run: |
+          docker logout
+name: Initiate LLVM Source
+on:
+  workflow_dispatch:
