@@ -79,35 +79,35 @@ jobs:
   outdated_bookworm:
     needs:
       - dockerhub
-    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
+    uses: ./.github/workflows/outdated.yml
     with:
       json: ${{ needs.dockerhub.outputs.bookworm }}
       name: bookworm
   outdated_bullseye:
     needs:
       - dockerhub
-    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
+    uses: ./.github/workflows/outdated.yml
     with:
       json: ${{ needs.dockerhub.outputs.bullseye }}
       name: bullseye
   outdated_focal:
     needs:
       - dockerhub
-    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
+    uses: ./.github/workflows/outdated.yml
     with:
       json: ${{ needs.dockerhub.outputs.focal }}
       name: focal
   outdated_jammy:
     needs:
       - dockerhub
-    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
+    uses: ./.github/workflows/outdated.yml
     with:
       json: ${{ needs.dockerhub.outputs.jammy }}
       name: jammy
   outdated_noble:
     needs:
       - dockerhub
-    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
+    uses: ./.github/workflows/outdated.yml
     with:
       json: ${{ needs.dockerhub.outputs.noble }}
       name: noble
