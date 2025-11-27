@@ -7,8 +7,10 @@
     "esac",
     "flang",
     "jlumbroso",
+    "libzstd",
     "snowstep",
     "trixie",
+    "zstd",
   ],
   "files.associations": {
     "**/LICENSE": "plaintext",
