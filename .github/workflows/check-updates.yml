@@ -139,7 +139,7 @@ jobs:
         id: outdated
         name: Necessary for update
         run: |
-          jq -Mcr '.outdated_${{ matrix.codename }}.outputs|"MAJOR_VERSION=\(.MAJOR_VERSION)\n datetime=\(.VERSION)\n value=\(.OUTDATED)"' \
+          jq -Mcr '.outdated_${{ matrix.codename }}.outputs|"MAJOR_VERSION=\(.MAJOR_VERSION)\n${{ matrix.codename }}=\(.OUTDATED)\n datetime=\(.VERSION)\n value=\(.OUTDATED)"' \
             <<< $NEEDS \
             | sed -r 's/^\s+//g' \
             | tee -a $GITHUB_OUTPUT \
