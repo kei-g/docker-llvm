@@ -18,12 +18,16 @@ RUN apt-fast update \
   && [ -d $keydir ] \
     || mkdir -pv $keydir \
   && gpg --export > $keydir/$keyname \
+  && distro=$(grep -E '^VERSION_CODENAME=.+$' < /etc/os-release) \
+  && distro=${distro#*=} \
   && for what in deb deb-src; do \
       printf \
-        '%s [signed-by=%s] http://%s/unstable/ llvm-toolchain main\n' \
+        '%s [signed-by=%s] http://%s/%s/ llvm-toolchain-%s main\n' \
           $what \
           $keydir/$keyname \
-          $llvm; \
+          $llvm \
+          $distro \
+          $distro; \
     done > /etc/apt/sources.list.d/llvm-toolchain.list \
   && apt-fast update \
   && apt-fast install --no-install-recommends --yes \
