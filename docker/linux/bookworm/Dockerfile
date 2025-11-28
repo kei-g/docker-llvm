@@ -14,7 +14,7 @@ RUN apt-fast update \
   && llvm=apt.llvm.org \
   && aria2c https://$llvm/$keyname.key \
   && gpg --import $keyname.key \
-  && rm -f $keyname \
+  && rm -f $keyname.key \
   && [ -d $keydir ] \
     || mkdir -pv $keydir \
   && gpg --export > $keydir/$keyname \
