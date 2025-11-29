@@ -39,7 +39,7 @@ jobs:
                   json=$(curl -s $url)
                   name=$(
                     jq -Mcr \
-                      ".results[]|select(.digest==\"$digest\")|select(.name|endswith(\"-latest\")|not).name" \
+                      ".results[]|select(.digest==\"$digest\")|select(.name==\"$codename\"|not)|select(.name|endswith(\"-latest\")|not).name" \
                       <<< $json
                   )
                   [[ -z $name ]] \
