@@ -14,10 +14,16 @@ jobs:
           key: llvm-source-
           path: llvm-project
           restore-keys: llvm-source-*
-      - if: ${{ steps.previous.outputs.cache-hit != 'true' }}
+      - if: ${{ steps.previous.outputs.cache-matched-key == '' }}
         name: Clone the repository if necessary
         run: |
           git clone --recursive https://github.com/llvm/llvm-project.git
+      - if: ${{ steps.previous.outputs.cache-matched-key != '' }}
+        name: Pull
+        run: |
+          cd llvm-project
+          git fetch --all --prune
+          git pull --rebase
       - id: last-commit
         name: Acquire the latest commit datetime
         run: |
