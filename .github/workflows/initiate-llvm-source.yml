@@ -1,51 +1,40 @@
 jobs:
   initiate:
     name: Initiate
+    needs:
+      - source
     runs-on: ubuntu-latest
     steps:
+      - id: cache
+        name: Restore the repository from cache
+        uses: actions/cache/restore@v4
+        with:
+          fail-on-cache-miss: true
+          key: llvm-source-${{ needs.source.outputs.datetime }}
+          path: llvm-project
       - name: Free disk space
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: true
       - name: Pull docker images
         run: |
-          for codename in bookworm bullseye focal jammy noble trixie; do
-            docker pull snowstep/llvm:$codename
-          done
-      - name: Checkout the llvm repository
-        run: |
-          git clone \
-              --recursive \
-              https://github.com/llvm/llvm-project.git
-      - id: datetime
-        name: Get the last commit datetime
-        run: |
-          cd llvm-project
-          datetime=$(git --no-pager log --date=iso-local --pretty=%cd -1)
-          echo value=$(date --date="$datetime" --utc '+%Y%m%d%H%M%S') \
-            | tee -a $GITHUB_OUTPUT \
-            >&2
+          docker pull snowstep/llvm:${{ matrix.codename }}
       - id: container
-        name: Start containers
+        name: Start container
         run: |
-          for codename in bookworm bullseye focal jammy noble trixie; do
-            echo $codename=$(
-              docker run \
-                  --detach \
-                  --interactive \
-                  --tty \
-                snowstep/llvm:$codename
-            )
-          done \
+          echo id=$(
+            docker run \
+                --detach \
+                --interactive \
+                --tty \
+              snowstep/llvm:${{ matrix.codename }}
+          ) \
             | tee -a $GITHUB_OUTPUT \
             >&2
-      - env:
-          container: ${{ toJSON(steps.container.outputs) }}
-        name: Install packages
+      - name: Install packages
         run: |
-          for codename in bookworm bullseye focal jammy noble trixie; do
-            docker exec \
-              $(jq -Mcr ".$codename" <<< $container) \
+          docker exec \
+              ${{ steps.container.outputs.id }} \
               sh -s << _EOT_
           apt-fast update
           apt-fast install --no-install-recommends --yes \
@@ -61,46 +50,28 @@ jobs:
           rm -fr /var/lib/apt/lists/*
           pip install cmake ninja
           _EOT_
-          done
         shell: bash
-      - env:
-          container: ${{ toJSON(steps.container.outputs) }}
-        name: Write the llvm repository into containers
+      - name: Write the llvm repository
         run: |
-          for codename in bookworm bullseye focal jammy noble trixie; do
-            docker cp \
-                --archive \
-                --follow-link \
-              llvm-project \
-              $(jq -Mcr ".$codename" <<< $container):/
-          done
-        shell: bash
-      - env:
-          container: ${{ toJSON(steps.container.outputs) }}
-        name: Stop containers
+          docker cp \
+              --archive \
+              --follow-link \
+            llvm-project \
+            ${{ steps.container.outputs.id }}:/
+      - name: Delete the repository
         run: |
-          for codename in bookworm bullseye focal jammy noble trixie; do
-            docker kill $(jq -Mcr ".$codename" <<< $container)
-          done
-        shell: bash
-      - env:
-          container: ${{ toJSON(steps.container.outputs) }}
-        name: Commit containers to images
+          rm -fr llvm-project
+      - name: Stop container
         run: |
-          for codename in bookworm bullseye focal jammy noble trixie; do
-            docker commit \
-              $(jq -Mcr ".$codename" <<< $container) \
-              snowstep/llvm-source:$codename
-          done
-        shell: bash
-      - env:
-          container: ${{ toJSON(steps.container.outputs) }}
-        name: Remove containers
+          docker kill ${{ steps.container.outputs.id }}
+      - name: Commit container to image
         run: |
-          for codename in bookworm bullseye focal jammy noble trixie; do
-            docker rm $(jq -Mcr ".$codename" <<< $container)
-          done
-        shell: bash
+          docker commit \
+            ${{ steps.container.outputs.id }} \
+            snowstep/llvm-source:${{ matrix.codename }}
+      - name: Remove container
+        run: |
+          docker rm ${{ steps.container.outputs.id }}
       - name: Login to DockerHub
         run: |
           password="${{ secrets.DOCKERHUB_PASSWORD }}"
@@ -111,24 +82,86 @@ jobs:
         shell: bash
       - name: Push images
         run: |
-          for codename in bookworm bullseye focal jammy noble trixie; do
-            matched=$(grep -PR ",$codename," /usr/share/distro-info)
-            filepath=${matched%:*}
-            filename=${filepath##*/}
-            distro=${filename%.*}
-            version=$(grep -P '^[1-9]\d*(\.\d+)?' -o <<< ${matched#*:})
-            source=snowstep/llvm-source:$codename
-            docker push $source
-            for suffix in ${{ steps.datetime.outputs.value }} latest; do
-              dest=snowstep/llvm-source:$distro-$version-$suffix
-              docker tag $source $dest
-              docker push $dest
-            done
+          matched=$(grep -PR ",${{ matrix.codename }}," /usr/share/distro-info)
+          filepath=${matched%:*}
+          filename=${filepath##*/}
+          distro=${filename%.*}
+          version=$(grep -P '^[1-9]\d*(\.\d+)?' -o <<< ${matched#*:})
+          source=snowstep/llvm-source:${{ matrix.codename }}
+          docker push $source
+          for suffix in ${{ needs.source.outputs.datetime }} latest; do
+            dest=snowstep/llvm-source:$distro-$version-$suffix
+            docker tag $source $dest
+            docker push $dest
           done
         shell: bash
       - name: Logout
         run: |
           docker logout
+    strategy:
+      matrix:
+        codename:
+          - bookworm
+          - bullseye
+          - focal
+          - jammy
+          - noble
+          - trixie
+  source:
+    name: Fetch the llvm repository
+    outputs:
+      datetime: ${{ steps.datetime.outputs.value }}
+    runs-on: ubuntu-latest
+    steps:
+      - if: ${{ inputs.skip-clone != true }}
+        name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+      - if: ${{ inputs.skip-clone != true }}
+        name: Checkout the llvm repository
+        run: |
+          git clone \
+              --recursive \
+            https://github.com/llvm/llvm-project.git
+      - id: cache
+        if: ${{ inputs.skip-clone == true }}
+        name: Restore the repository from cache
+        uses: actions/cache/restore@v4
+        with:
+          key: llvm-source-
+          lookup-only: true
+          path: llvm-project
+          restore-keys: |
+            llvm-source-*
+      - id: datetime
+        name: Get the last commit datetime
+        run: |
+          case '${{ inputs.skip-clone }}' in
+            true)
+                matched=${{ steps.cache.outputs.cache-matched-key }}
+                echo value=${matched##*-}
+              ;;
+            *)
+                cd llvm-project
+                datetime=$(git --no-pager log --date=iso-local --pretty=%cd -1)
+                echo value=$(date --date="$datetime" --utc '+%Y%m%d%H%M%S')
+              ;;
+          esac \
+            | tee -a $GITHUB_OUTPUT \
+            >&2
+        shell: bash
+      - if: ${{ inputs.skip-clone != true }}
+        name: Cache the repository
+        uses: actions/cache/save@v4
+        with:
+          key: llvm-source-${{ steps.datetime.outputs.value }}
+          path: llvm-project
 name: Initiate LLVM Source
 on:
   workflow_dispatch:
+    inputs:
+      skip-clone:
+        default: true
+        description: Skip cloning the repository
+        type: boolean
