@@ -124,24 +124,46 @@ jobs:
       datetime: ${{ steps.datetime.outputs.value }}
     runs-on: ubuntu-latest
     steps:
-      - name: Free disk space
+      - if: ${{ inputs.skip-clone != true }}
+        name: Free disk space
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: true
-      - name: Checkout the llvm repository
+      - if: ${{ inputs.skip-clone != true }}
+        name: Checkout the llvm repository
         run: |
           git clone \
               --recursive \
             https://github.com/llvm/llvm-project.git
+      - id: cache
+        if: ${{ inputs.skip-clone == true }}
+        name: Restore the repository from cache
+        uses: actions/cache/restore@v4
+        with:
+          key: llvm-source-
+          lookup-only: true
+          path: llvm-project
+          restore-keys: |
+            llvm-source-*
       - id: datetime
         name: Get the last commit datetime
         run: |
-          cd llvm-project
-          datetime=$(git --no-pager log --date=iso-local --pretty=%cd -1)
-          echo value=$(date --date="$datetime" --utc '+%Y%m%d%H%M%S') \
+          case '${{ inputs.skip-clone }}' in
+            true)
+                matched=${{ steps.cache.outputs.cache-matched-key }}
+                echo value=${matched##*-}
+              ;;
+            *)
+                cd llvm-project
+                datetime=$(git --no-pager log --date=iso-local --pretty=%cd -1)
+                echo value=$(date --date="$datetime" --utc '+%Y%m%d%H%M%S')
+              ;;
+          esac \
             | tee -a $GITHUB_OUTPUT \
             >&2
-      - name: Cache the repository
+        shell: bash
+      - if: ${{ inputs.skip-clone != true }}
+        name: Cache the repository
         uses: actions/cache/save@v4
         with:
           key: llvm-source-${{ steps.datetime.outputs.value }}
@@ -149,3 +171,8 @@ jobs:
 name: Initiate LLVM Source
 on:
   workflow_dispatch:
+    inputs:
+      skip-clone:
+        default: true
+        description: Skip cloning the repository
+        type: boolean
