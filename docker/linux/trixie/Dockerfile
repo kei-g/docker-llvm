@@ -14,16 +14,19 @@ RUN apt-fast update \
   && llvm=apt.llvm.org \
   && aria2c https://$llvm/$keyname.key \
   && gpg --import $keyname.key \
-  && rm -f $keyname \
+  && rm -f $keyname.key \
   && [ -d $keydir ] \
     || mkdir -pv $keydir \
   && gpg --export > $keydir/$keyname \
+  && codename=$(grep -P '(?<=VERSION_CODENAME=).+$' -o < /etc/os-release) \
   && for what in deb deb-src; do \
       printf \
-        '%s [signed-by=%s] http://%s/unstable/ llvm-toolchain main\n' \
+        '%s [signed-by=%s] http://%s/%s/ llvm-toolchain-%s main\n' \
           $what \
           $keydir/$keyname \
-          $llvm; \
+          $llvm \
+          $codename \
+          $codename; \
     done > /etc/apt/sources.list.d/llvm-toolchain.list \
   && apt-fast update \
   && apt-fast install --no-install-recommends --yes \

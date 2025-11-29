@@ -7,6 +7,7 @@ jobs:
       focal: ${{ steps.dockerhub.outputs.focal }}
       jammy: ${{ steps.dockerhub.outputs.jammy }}
       noble: ${{ steps.dockerhub.outputs.noble }}
+      trixie: ${{ steps.dockerhub.outputs.trixie }}
     runs-on: ubuntu-latest
     steps:
       - id: dockerhub
@@ -22,7 +23,7 @@ jobs:
               llvm) llvm[$codename]="$datetime,$digest";;
             esac
           done < <(
-            for dist in debian:bookworm debian:bullseye ubuntu:focal ubuntu:jammy ubuntu:noble; do
+            for dist in debian:bookworm debian:bullseye debian:trixie ubuntu:focal ubuntu:jammy ubuntu:noble; do
               distro=${dist%:*}
               codename=${dist#*:}
               version=$(
@@ -38,7 +39,7 @@ jobs:
                   json=$(curl -s $url)
                   name=$(
                     jq -Mcr \
-                      ".results[]|select(.digest==\"$digest\")|select(.name|endswith(\"-latest\")|not).name" \
+                      ".results[]|select(.digest==\"$digest\")|select(.name==\"$codename\"|not)|select(.name|endswith(\"-latest\")|not).name" \
                       <<< $json
                   )
                   [[ -z $name ]] \
@@ -79,38 +80,45 @@ jobs:
   outdated_bookworm:
     needs:
       - dockerhub
-    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
+    uses: ./.github/workflows/outdated.yml
     with:
       json: ${{ needs.dockerhub.outputs.bookworm }}
       name: bookworm
   outdated_bullseye:
     needs:
       - dockerhub
-    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
+    uses: ./.github/workflows/outdated.yml
     with:
       json: ${{ needs.dockerhub.outputs.bullseye }}
       name: bullseye
   outdated_focal:
     needs:
       - dockerhub
-    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
+    uses: ./.github/workflows/outdated.yml
     with:
       json: ${{ needs.dockerhub.outputs.focal }}
       name: focal
   outdated_jammy:
     needs:
       - dockerhub
-    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
+    uses: ./.github/workflows/outdated.yml
     with:
       json: ${{ needs.dockerhub.outputs.jammy }}
       name: jammy
   outdated_noble:
     needs:
       - dockerhub
-    uses: kei-g/docker-llvm/.github/workflows/outdated.yml@main
+    uses: ./.github/workflows/outdated.yml
     with:
       json: ${{ needs.dockerhub.outputs.noble }}
       name: noble
+  outdated_trixie:
+    needs:
+      - dockerhub
+    uses: ./.github/workflows/outdated.yml
+    with:
+      json: ${{ needs.dockerhub.outputs.trixie }}
+      name: trixie
   patch:
     if: ${{ needs.publish-if-outdated.outputs.outdated == 'true' }}
     name: Patch the description to DockerHub
@@ -130,8 +138,9 @@ jobs:
       - outdated_focal
       - outdated_jammy
       - outdated_noble
+      - outdated_trixie
     outputs:
-      outdated: ${{ steps.outdated.outputs.bookworm == 'true' || steps.outdated.outputs.bullseye == 'true' || steps.outdated.outputs.focal == 'true' || steps.outdated.outputs.jammy == 'true' || steps.outdated.outputs.noble == 'true' }}
+      outdated: ${{ steps.outdated.outputs.bookworm == 'true' || steps.outdated.outputs.bullseye == 'true' || steps.outdated.outputs.focal == 'true' || steps.outdated.outputs.jammy == 'true' || steps.outdated.outputs.noble == 'true' || steps.outdated.outputs.trixie == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - env:
@@ -183,9 +192,9 @@ jobs:
         with:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/llvm
           tags: |
+            type=raw,value=${{ matrix.codename }}
             type=raw,value=${{ matrix.distro }}-${{ steps.outdated.outputs.version }}-latest
             type=raw,value=${{ matrix.distro }}-${{ steps.outdated.outputs.version }}-${{ steps.outdated.outputs.datetime }}
-            type=raw,value=${{ matrix.codename }}
       - if: ${{ steps.outdated.outputs.value == 'true' }}
         name: Run Buildx and Push it to DockerHub
         uses: docker/build-push-action@v6
@@ -210,6 +219,8 @@ jobs:
             distro: ubuntu
           - codename: noble
             distro: ubuntu
+          - codename: trixie
+            distro: debian
 name: Check updates
 on:
   schedule:
