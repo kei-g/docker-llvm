@@ -1,242 +1,60 @@
 jobs:
-  dockerhub:
-    env:
-      NOT_UPDATED: |
-        {
-          "since": {
-            "bookworm": 20251015112211,
-            "bullseye": 20250809111900,
-            "focal": 20251014052939,
-            "jammy": 20251015042503
-          }
-        }
-    name: Acquire digests from DockerHub
-    outputs:
-      bookworm: ${{ steps.dockerhub.outputs.bookworm }}
-      bullseye: ${{ steps.dockerhub.outputs.bullseye }}
-      focal: ${{ steps.dockerhub.outputs.focal }}
-      jammy: ${{ steps.dockerhub.outputs.jammy }}
-      noble: ${{ steps.dockerhub.outputs.noble }}
-      trixie: ${{ steps.dockerhub.outputs.trixie }}
-    runs-on: ubuntu-latest
-    steps:
-      - id: dockerhub
-        name: Acquire the latest images information from DockerHub to detect older snowstep/llvm than snowstep/apt-fast
-        run: |
-          api=https://hub.docker.com/v2/namespaces
-          repo=$api/${{ secrets.DOCKERHUB_USERNAME }}/repositories
-          declare -A apt
-          declare -A llvm
-          while read -r image codename datetime digest; do
-            case $image in
-              apt-fast) apt[$codename]=$datetime;;
-              llvm) llvm[$codename]="$datetime,$digest";;
-            esac
-          done < <(
-            for dist in debian:bookworm debian:bullseye debian:trixie ubuntu:focal ubuntu:jammy ubuntu:noble; do
-              distro=${dist%:*}
-              codename=${dist#*:}
-              version=$(
-                grep -P ",$codename," \
-                  < /usr/share/distro-info/$distro.csv \
-                  | sed -r 's/(\s+[^,]*)?,.*$//'
-              )
-              for image in apt-fast llvm; do
-                tags=$repo/$image/tags
-                digest=$(curl -s $tags/$distro-$version-latest | jq -Mcr '.digest')
-                url=$tags\?page=1\&page_size=100
-                while [[ $url != null ]]; do
-                  json=$(curl -s $url)
-                  name=$(
-                    jq -Mcr \
-                      ".results[]|select(.digest==\"$digest\" and (.name|test(\"-[0-9]{14}$\"))).name" \
-                      <<< $json
-                  )
-                  [[ -z $name ]] \
-                    || {
-                      datetime=${name##*-}
-                      echo "$image $codename $datetime $digest"
-                      break
-                    }
-                  url=$(jq -Mcr '.next' <<< $json)
-                done
-              done
-            done
-          )
-          echo ::group::apt-fast >&2
-          for codename in ${!apt[@]}; do
-            echo $codename datetime=${apt[$codename]} >&2
-            not_updated_since=$(jq -Mcr ".since.$codename" <<< $NOT_UPDATED)
-            [[ $not_updated_since == null ]] \
-              || {
-                echo $codename has not been updated since $not_updated_since >&2
-                apt[$codename]=$not_updated_since
-              }
-          done
-          echo ::endgroup:: >&2
-          echo ::group::llvm >&2
-          for codename in ${!llvm[@]}; do
-            echo $codename \(datetime,digest\)=\(${llvm[$codename]}\) >&2
-          done
-          echo ::endgroup:: >&2
-          boolean=(true false)
-          for name in "${!llvm[@]}"; do
-            value=${llvm[$name]}
-            datetime=${value%,*}
-            digest=${value#*,}
-            outdated=$(
-              [[ $datetime -lt ${apt[$name]} ]]
-              echo $?
-            )
-            echo "$name={\"digest\":\"$digest\",\"outdated\":${boolean[$outdated]}}"
-          done \
-            | tee -a $GITHUB_OUTPUT \
-            >&2
-        shell: bash
-  outdated_bookworm:
-    needs:
-      - dockerhub
-    uses: ./.github/workflows/outdated.yml
+  flang-runtime-bookworm:
+    name: debian-12
+    uses: ./.github/workflows/flang-runtime.yml
+    secrets: inherit
     with:
-      json: ${{ needs.dockerhub.outputs.bookworm }}
-      name: bookworm
-  outdated_bullseye:
-    needs:
-      - dockerhub
-    uses: ./.github/workflows/outdated.yml
+      DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+      codename: bookworm
+  flang-runtime-bullseye:
+    name: debian-11
+    secrets: inherit
+    uses: ./.github/workflows/flang-runtime.yml
     with:
-      json: ${{ needs.dockerhub.outputs.bullseye }}
-      name: bullseye
-  outdated_focal:
-    needs:
-      - dockerhub
-    uses: ./.github/workflows/outdated.yml
+      DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+      codename: bullseye
+  flang-runtime-focal:
+    name: ubuntu-20.04
+    secrets: inherit
+    uses: ./.github/workflows/flang-runtime.yml
     with:
-      json: ${{ needs.dockerhub.outputs.focal }}
-      name: focal
-  outdated_jammy:
-    needs:
-      - dockerhub
-    uses: ./.github/workflows/outdated.yml
+      DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+      codename: focal
+  flang-runtime-jammy:
+    name: ubuntu-22.04
+    secrets: inherit
+    uses: ./.github/workflows/flang-runtime.yml
     with:
-      json: ${{ needs.dockerhub.outputs.jammy }}
-      name: jammy
-  outdated_noble:
-    needs:
-      - dockerhub
-    uses: ./.github/workflows/outdated.yml
+      DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+      codename: jammy
+  flang-runtime-noble:
+    name: ubuntu-24.04
+    secrets: inherit
+    uses: ./.github/workflows/flang-runtime.yml
     with:
-      json: ${{ needs.dockerhub.outputs.noble }}
-      name: noble
-  outdated_trixie:
-    needs:
-      - dockerhub
-    uses: ./.github/workflows/outdated.yml
+      DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+      codename: noble
+  flang-runtime-trixie:
+    name: debian-13
+    secrets: inherit
+    uses: ./.github/workflows/flang-runtime.yml
     with:
-      json: ${{ needs.dockerhub.outputs.trixie }}
-      name: trixie
+      DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+      codename: trixie
   patch:
-    if: ${{ needs.publish-if-outdated.outputs.outdated == 'true' }}
+    if: ${{ needs.flang-runtime-bookworm.outputs.outdated == 'true' || needs.flang-runtime-bullseye.outputs.outdated == 'true' || needs.flang-runtime-focal.outputs.outdated == 'true' || needs.flang-runtime-jammy.outputs.outdated == 'true' || needs.flang-runtime-noble.outputs.outdated == 'true' || needs.flang-runtime-trixie.outputs.outdated == 'true' }}
     name: Patch the description to DockerHub
     needs:
-      - publish-if-outdated
-    secrets:
-      DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      - flang-runtime-bookworm
+      - flang-runtime-bullseye
+      - flang-runtime-focal
+      - flang-runtime-jammy
+      - flang-runtime-noble
+      - flang-runtime-trixie
+    secrets: inherit
     uses: ./.github/workflows/patch.yml
-  publish-if-outdated:
-    continue-on-error: true
-    name: Publish if ${{ matrix.distro }}:${{ matrix.codename }} has outdated
-    needs:
-      - dockerhub
-      - outdated_bookworm
-      - outdated_bullseye
-      - outdated_focal
-      - outdated_jammy
-      - outdated_noble
-      - outdated_trixie
-    outputs:
-      outdated: ${{ steps.outdated.outputs.bookworm == 'true' || steps.outdated.outputs.bullseye == 'true' || steps.outdated.outputs.focal == 'true' || steps.outdated.outputs.jammy == 'true' || steps.outdated.outputs.noble == 'true' || steps.outdated.outputs.trixie == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - env:
-          NEEDS: ${{ toJSON(needs) }}
-        id: outdated
-        name: Necessary for update
-        run: |
-          jq -Mcr '.outdated_${{ matrix.codename }}.outputs|"MAJOR_VERSION=\(.MAJOR_VERSION)\n${{ matrix.codename }}=\(.OUTDATED)\n datetime=\(.VERSION)\n value=\(.OUTDATED)"' \
-            <<< $NEEDS \
-            | sed -r 's/^\s+//g' \
-            | tee -a $GITHUB_OUTPUT \
-            >&2
-          version=$(
-            grep -P ",${{ matrix.codename }}," \
-              < /usr/share/distro-info/${{ matrix.distro }}.csv \
-              | sed -r 's/(\s+[^,]*)?,.*$//'
-          )
-          echo version=$version \
-            | tee -a $GITHUB_OUTPUT \
-            >&2
-        shell: bash
-      - if: ${{ steps.outdated.outputs.value == 'true' }}
-        name: Checkout the repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-          ref: main
-      - if: ${{ steps.outdated.outputs.value == 'true' }}
-        name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - if: ${{ steps.outdated.outputs.value == 'true' }}
-        name: Copy Dockerfile
-        run: |
-          cp docker/linux/${{ matrix.codename }}/Dockerfile ./
-      - if: ${{ steps.outdated.outputs.value == 'true' }}
-        name: Login to DockerHub
-        uses: docker/login-action@v3
-        with:
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-      - name: Free disk space
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: true
-      - id: tags
-        if: ${{ steps.outdated.outputs.value == 'true' }}
-        name: Decide tags
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/llvm
-          tags: |
-            type=raw,value=${{ matrix.codename }}
-            type=raw,value=${{ matrix.distro }}-${{ steps.outdated.outputs.version }}-latest
-            type=raw,value=${{ matrix.distro }}-${{ steps.outdated.outputs.version }}-${{ steps.outdated.outputs.datetime }}
-      - if: ${{ steps.outdated.outputs.value == 'true' }}
-        name: Run Buildx and Push it to DockerHub
-        uses: docker/build-push-action@v6
-        with:
-          build-args: |
-            MAJOR_VERSION=${{ steps.outdated.outputs.MAJOR_VERSION }}
-          context: .
-          push: true
-          tags: |
-            ${{ steps.tags.outputs.tags }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - codename: bookworm
-            distro: debian
-          - codename: bullseye
-            distro: debian
-          - codename: focal
-            distro: ubuntu
-          - codename: jammy
-            distro: ubuntu
-          - codename: noble
-            distro: ubuntu
-          - codename: trixie
-            distro: debian
+    with:
+      DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
 name: Check updates
 on:
   schedule:

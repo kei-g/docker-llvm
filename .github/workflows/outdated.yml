@@ -1,97 +1,157 @@
 jobs:
-  compare:
-    container: snowstep/llvm@${{ needs.parse.outputs.digest }}
-    name: See the latest release of LLVM on snowstep/llvm:${{ inputs.name }}
+  apt:
+    name: Get the latest clang version on apt.llvm.org
     needs:
-      - parse
+      - dockerhub
     outputs:
-      MAJOR_VERSION: ${{ steps.llvm.outputs.MAJOR_VERSION }}
-      OUTDATED: ${{ needs.parse.outputs.OUTDATED == 'true' || steps.llvm.outputs.OUTDATED =='true' }}
-      VERSION: ${{ steps.llvm.outputs.VERSION }}
+      commit-hash: ${{ steps.latest.outputs.commit-hash }}
+      datetime: ${{ steps.latest.outputs.datetime }}
+      major-version: ${{ steps.latest.outputs.major-version }}
+      outdated: ${{ steps.outdated.outputs.value }}
     runs-on: ubuntu-latest
     steps:
-      - id: llvm
-        name: Compare currently installed version with the latest llvm
+      - id: latest
+        name: Get the latest version on apt.llvm.org
         run: |
-          local=$(
-            which clang \
-              > /dev/null \
-              && { \
-                clang --version \
-                  | grep version \
-                  | grep -E '[0-9]{14}' -o \
-                  | head -n1; \
-              } \
-              || echo 0
-          )
-          echo "clang version (installed): $local" >&2
-          repo=${{ inputs.name }}
-          name=llvm-toolchain-${{ inputs.name }}
+          repo=${{ inputs.codename }}
+          name=llvm-toolchain-${{ inputs.codename }}
           repo=https://apt.llvm.org/$repo/dists/$name
           url=$repo/main/binary-amd64/Packages.gz
-          aria2c --quiet $url \
-            && {
-              declare -A dep
-              declare -A ver
-              name=
-              while read line; do
-                key=${line%%:\ *}
-                value=${line#*:\ }
-                case $key in
-                  Depends) dep[$name]=${value%%\ *};;
-                  Package) name=$value;;
-                  Version) ver[$name]=$(grep -E '[0-9]{14}' -o <<< $value | head -n1);;
-                esac
-              done <<< $(gzip -cd Packages.gz)
-              latest=${ver[${dep[clang]}]}
-              echo "clang version (latest): $latest" >&2
-              boolean=(true false)
-              outdated=$([[ $latest -gt $local ]]; echo $?)
-              echo -e \
-                "MAJOR_VERSION=${dep[clang]#*-}\n" \
-                "OUTDATED=${boolean[$outdated]}\n" \
-                "VERSION=$latest" \
-                | sed -r 's/^\s+//g' \
-                | tee -a $GITHUB_OUTPUT \
-                >&2
-            } \
-            || {
-              echo $url is not found >&2
-              echo OUTDATED=false \
-                | tee -a $GITHUB_OUTPUT \
-                >&2
-            }
+          response=$(curl -s $url | gzip -cd)
+          echo ${#response} bytes received from $url
+          version=$(
+            grep -P '(?<=Version:\s).+$' -o \
+              <<< $response \
+              | sort -u \
+              | grep -P '[1-9]\d*~\+\+\d{14}\+[\da-f]{11}'
+          )
+          echo ::group::version string
+          echo $version
+          echo ::endgroup::
+          echo ::group::outputs
+          {
+            echo commit-hash=$(grep -P '(?<=\d{14}\+)[\da-f]{11}' -o <<< $version)
+            echo datetime=$(grep -P '(?<=\+\+)\d{14}' -o <<< $version)
+            echo major-version=$(grep -P '(?<=:)[1-9][0-9]*(?=~\+\+)' -o <<< $version)
+          } \
+            | tee -a $GITHUB_OUTPUT
+          echo ::endgroup::
         shell: bash
-  parse:
-    name: Parse JSON for ${{ inputs.name }}
+      - id: outdated
+        name: Necessary for update
+        run: |
+          echo value=$(
+            [[ ${{ needs.dockerhub.outputs.datetime }} -lt ${{ steps.latest.outputs.datetime }} ]] \
+              && echo true \
+              || echo false
+          ) | tee -a $GITHUB_OUTPUT
+        shell: bash
+  distro:
+    name: Get distro name and version string corresponding to  ${{ inputs.codename }}
     outputs:
-      digest: ${{ steps.parse.outputs.DIGEST }}
-      outdated: ${{ steps.parse.outputs.OUTDATED }}
+      long-name: ${{ steps.distro.outputs.long-name }}
     runs-on: ubuntu-latest
     steps:
-      - env:
-          JSON: ${{ inputs.json }}
-        id: parse
+      - id: distro
+        uses: kei-g/github/debian/resolve-distro@main
+        with:
+          codename: ${{ inputs.codename }}
+  dockerhub:
+    name: Get the latest docker image
+    needs:
+      - distro
+    outputs:
+      datetime: ${{ fromJSON(steps.latest.outputs.llvm).datetime }}
+      digest: ${{ fromJSON(steps.latest.outputs.llvm).digest }}
+      outdated: ${{ steps.outdated.outputs.value }}
+    runs-on: ubuntu-latest
+    steps:
+      - id: latest
+        name: Get the latest docker image
         run: |
-          jq -Mcr '"DIGEST=\(.digest)\nOUTDATED=\(.outdated)"' \
-            <<< $JSON \
-            | tee -a $GITHUB_OUTPUT \
-            >&2
+          repo=https://hub.docker.com/v2/namespaces/${{ inputs.DOCKERHUB_USERNAME }}/repositories
+          for name in apt-fast llvm; do
+            tags=$repo/$name/tags
+            url=$tags/${{ needs.distro.outputs.long-name }}-latest
+            echo ::group::$name
+            json=$(curl -s $url)
+            digest=$(jq -Mcr '.digest' <<< $json)
+            url=$tags\?page=1\&page_size=100
+            while [[ $url != null ]]; do
+              json=$(curl -s $url)
+              datetime=$(
+                jq -Mcr \
+                    ".results[]|select(.digest==\"$digest\" and (.name|test(\"-[0-9]{14}$\"))).name|split(\"-\")|last" \
+                  <<< $json
+              )
+              [[ -z $datetime ]] \
+                || {
+                  echo "$name={\"datetime\": $datetime, \"digest\": \"$digest\" }" \
+                    | tee -a $GITHUB_OUTPUT
+                  break
+                }
+              url=$(jq -Mcr '.next' <<< $json)
+            done
+            echo ::endgroup::
+          done
+        shell: bash
+      - env:
+          NOT_UPDATED_SINCE: |
+            {
+              "bookworm": 20251015112211,
+              "bullseye": 20250809111900,
+              "focal": 20251014052939,
+              "jammy": 20251015042503
+            }
+        id: outdated
+        name: Check whether if outdated
+        run: |
+          not_updated_since=$(
+            jq -Mcr '.${{ inputs.codename }}' \
+              <<< $NOT_UPDATED_SINCE
+          )
+          case $not_updated_since in
+            null)
+                echo value=${{ fromJSON(steps.latest.outputs.apt-fast).datetime > fromJSON(steps.latest.outputs.llvm).datetime }}
+              ;;
+            *)
+                echo value=false
+              ;;
+          esac \
+            | tee -a $GITHUB_OUTPUT
         shell: bash
 name: Compare currently installed version with the latest LLVM
 on:
   workflow_call:
     inputs:
-      json:
+      DOCKERHUB_USERNAME:
         required: true
         type: string
-      name:
+      codename:
         required: true
         type: string
     outputs:
-      MAJOR_VERSION:
-        value: ${{ jobs.compare.outputs.MAJOR_VERSION }}
-      OUTDATED:
-        value: ${{ jobs.compare.outputs.OUTDATED }}
-      VERSION:
-        value: ${{ jobs.compare.outputs.VERSION }}
+      commit-hash:
+        value: ${{ jobs.apt.outputs.commit-hash }}
+      datetime:
+        value: ${{ jobs.apt.outputs.datetime }}
+      distro-name:
+        value: ${{ jobs.distro.outputs.long-name }}
+      major-version:
+        value: ${{ jobs.apt.outputs.major-version }}
+      outdated:
+        value: ${{ jobs.apt.outputs.outdated == 'true' || jobs.dockerhub.outputs.outdated == 'true' }}
+  workflow_dispatch:
+    inputs:
+      codename:
+        description: >
+          Release codename of debian like distributions.
+        options:
+          - bookworm
+          - bullseye
+          - focal
+          - jammy
+          - noble
+          - trixie
+        required: true
+        type: choice

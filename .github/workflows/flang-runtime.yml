@@ -1,0 +1,179 @@
+jobs:
+  build:
+    container: ${{ needs.clang.outputs.container }}
+    if: ${{ needs.clang.outputs.outdated == 'true' }}
+    name: Build flang runtime
+    needs:
+      - clang
+    outputs:
+      major-version: ${{ steps.major.outputs.version }}
+    runs-on: ubuntu-latest
+    steps:
+      - id: cache
+        name: Restore the llvm source repository from cache
+        uses: actions/cache/restore@v4
+        with:
+          fail-on-cache-miss: true
+          key: llvm-source-
+          path: llvm-project
+          restore-keys: llvm-source-*
+      - env:
+          DEBCONF_NOWARNINGS: yes
+          DEBIAN_FRONTEND: noninteractive
+        name: Install `apt` packages
+        run: |
+          apt-fast update
+          apt-fast install \
+              --no-install-recommends \
+              --yes \
+            git \
+            libedit-dev \
+            libxml2-dev \
+            libzstd-dev \
+            python3-pip \
+            zlib1g-dev \
+            zstd
+          apt clean --yes
+          rm -fr /var/lib/apt/lists/*
+      - name: Install `pip` packages
+        run: |
+          cat > /etc/pip.conf << _EOT_
+          [install]
+          site = true
+
+          [global]
+          break-system-packages = true
+          _EOT_
+          pip install cmake ninja
+      - name: Reset to ${{ needs.clang.outputs.commit-hash }}
+        run: |
+          cd llvm-project
+          git reset --hard ${{ needs.clang.outputs.commit-hash }}
+      - name: Create working directories
+        run: |
+          mkdir build dist
+      - name: Configure
+        run: |
+          cd build
+          cmake \
+            -D CMAKE_BUILD_TYPE=Release \
+            -D CMAKE_CXX_COMPILER=clang++ \
+            -D CMAKE_CXX_STANDARD=17 \
+            -D CMAKE_C_COMPILER=clang \
+            -D CMAKE_INSTALL_PREFIX=/dist \
+            -D LLVM_BUILD_INSTRUMENTED_COVERAGE=OFF \
+            -D LLVM_BUILD_TESTS=OFF \
+            -D LLVM_BUILD_TOOLS=OFF \
+            -D LLVM_ENABLE_LIBCXX=ON \
+            -D LLVM_ENABLE_PROJECTS="flang" \
+            -D LLVM_ENABLE_RUNTIMES="compiler-rt;flang-rt;openmp" \
+            -D LLVM_INCLUDE_BENCHMARKS=OFF \
+            -D LLVM_INCLUDE_EXAMPLES=OFF \
+            -D LLVM_INCLUDE_TESTS=OFF \
+            -D LLVM_INSTALL_UTILS=OFF \
+            -D LLVM_TARGETS_TO_BUILD=X86 \
+            -G Ninja \
+            -S /llvm-project/llvm
+      - name: Build
+        run: |
+          cd build
+          ninja flang-rt
+      - name: Install
+        run: |
+          cd build
+          ninja install
+      - id: major
+        name: Get major version
+        run: |
+          echo version=$(
+            grep -P '(?<=set\(LLVM_VERSION_MAJOR\s)[1-9][0-9]*' -o \
+              < /llvm-project/cmake/Modules/LLVMVersion.cmake
+          ) | tee -a $GITHUB_OUTPUT
+      - name: Upload the runtime binary
+        uses: actions/upload-artifact@v5
+        with:
+          name: libflang_rt-${{ inputs.codename }}-${{ needs.clang.outputs.datetime }}-${{ needs.clang.outputs.commit-hash }}
+          path: |
+            /dist/lib/clang/${{ steps.major.outputs.version }}/lib/x86_64-unknown-linux-gnu/libflang_rt.runtime.a
+  clang:
+    secrets: inherit
+    uses: ./.github/workflows/clang.yml
+    with:
+      DOCKERHUB_USERNAME: ${{ inputs.DOCKERHUB_USERNAME }}
+      codename: ${{ inputs.codename }}
+  install:
+    if: ${{ needs.clang.outputs.outdated == 'true' }}
+    name: Install flang runtime
+    needs:
+      - build
+      - clang
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - name: Download flang runtime
+        uses: actions/download-artifact@v6
+        with:
+          name: libflang_rt-${{ inputs.codename }}-${{ needs.clang.outputs.datetime }}-${{ needs.clang.outputs.commit-hash }}
+      - name: Copy Dockerfile
+        run: |
+          sed -r 's/__BASE__/${{ needs.clang.outputs.distro-name }}-${{ needs.clang.outputs.datetime }}/g' \
+            < docker/build-flang-runtime/Dockerfile
+            > Dockerfile
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          username: ${{ inputs.DOCKERHUB_USERNAME }}
+      - id: tags
+        name: Decide tags
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ inputs.DOCKERHUB_USERNAME }}/llvm
+          tags: |
+            type=raw,value=${{ inputs.codename }}
+            type=raw,value=${{ needs.clang.outputs.distro-name }}-latest
+            type=raw,value=${{ needs.clang.outputs.distro-name }}-${{ needs.clang.outputs.datetime }}
+      - name: Run Buildx and Push it to DockerHub
+        uses: docker/build-push-action@v6
+        with:
+          build-args: |
+            MAJOR_VERSION=${{ needs.build.outputs.major-version }}
+          context: .
+          push: true
+          tags: |
+            ${{ steps.tags.outputs.tags }}
+name: flang runtime
+on:
+  workflow_call:
+    inputs:
+      DOCKERHUB_USERNAME:
+        required: true
+        type: string
+      codename:
+        required: true
+        type: string
+    outputs:
+      outdated:
+        value: ${{ jobs.clang.outputs.outdated }}
+    secrets:
+      DOCKERHUB_PASSWORD:
+        required: true
+  workflow_dispatch:
+    inputs:
+      codename:
+        description: >
+          Release codename of debian like distributions.
+        options:
+          - bookworm
+          - bullseye
+          - focal
+          - jammy
+          - noble
+          - trixie
+        required: true
+        type: choice
