@@ -18,17 +18,22 @@ jobs:
         name: Pull
         run: |
           cd llvm-project
-          git fetch --all --prune
-          git pull --rebase
+          echo ::group::git fetch >&2
+          git fetch --all --porcelain --progress --prune
+          echo ::endgroup:: >&2
+          echo ::group::git pull >&2
+          git pull --progress --rebase
+          echo ::endgroup:: >&2
       - id: last-commit
         name: Acquire the latest commit datetime
         run: |
           cd llvm-project
           iso=$(git log --date=iso-local --format=%cd -1)
           datetime=$(date --date="$iso" --utc '+%Y%m%d%H%M%S')
-          echo $iso $datetime >&2
-          echo key=llvm-source-$datetime \
-            | tee -a $GITHUB_OUTPUT
+          echo ::group::git log
+          echo "\"$iso\" => $datetime"
+          echo ::endgroup::
+          echo key=llvm-source-$datetime >> $GITHUB_OUTPUT
       - if: ${{ steps.last-commit.outputs.key != steps.previous.outputs.cache-matched-key }}
         name: Save the repository to cache
         uses: actions/cache/save@v4
