@@ -1,5 +1,15 @@
 jobs:
   dockerhub:
+    env:
+      NOT_UPDATED: |
+        {
+          "since": {
+            "bookworm": 20251015112211,
+            "bullseye": 20250809111900,
+            "focal": 20251014052939,
+            "jammy": 20251015042503
+          }
+        }
     name: Acquire digests from DockerHub
     outputs:
       bookworm: ${{ steps.dockerhub.outputs.bookworm }}
@@ -56,6 +66,12 @@ jobs:
           echo ::group::apt-fast >&2
           for codename in ${!apt[@]}; do
             echo $codename datetime=${apt[$codename]} >&2
+            not_updated_since=$(jq -Mcr ".since.$codename" <<< $NOT_UPDATED)
+            [[ $not_updated_since == null ]] \
+              || {
+                echo $codename has not been updated since $not_updated_since >&2
+                apt[$codename]=$not_updated_since
+              }
           done
           echo ::endgroup:: >&2
           echo ::group::llvm >&2
