@@ -1,4 +1,39 @@
 jobs:
+  clean:
+    name: Cleanup
+    needs:
+      - update
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - name: Login
+        run: |
+          gh auth login --with-token << _EOT_
+          ${{ secrets.MY_TOKEN }}
+          _EOT_
+        shell: bash
+      - id: cache
+        name: List caches
+        run: |
+          echo list=$(
+            gh cache list \
+                --jq '.[]|select(.key|test("^llvm-source-[0-9]{14}$"))' \
+                --json id,key \
+              | jq -Mcr '.key' \
+              | tail -n+2
+          ) | tee -a $GITHUB_OUTPUT
+      - name: Delete caches
+        run: |
+          for key in ${{ steps.cache.outputs.list }}; do
+            echo Deleting $key...
+            gh cache delete $key
+          done
+      - name: Logout
+        run: |
+          gh auth logout
   update:
     name: Update
     runs-on: ubuntu-latest
