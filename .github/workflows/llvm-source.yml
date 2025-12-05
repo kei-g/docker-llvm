@@ -78,5 +78,5 @@ jobs:
 name: LLVM source
 on:
   schedule:
-    - cron: '10,40 * * * *'
+    - cron: '31 0,6,12,18 * * *'
   workflow_dispatch:
