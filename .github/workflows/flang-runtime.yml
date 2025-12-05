@@ -13,7 +13,6 @@ jobs:
         name: Restore the llvm source repository from cache
         uses: actions/cache/restore@v4
         with:
-          fail-on-cache-miss: true
           key: llvm-source-
           path: llvm-project
           restore-keys: llvm-source-*
