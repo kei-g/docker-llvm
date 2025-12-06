@@ -9,23 +9,17 @@ jobs:
       major-version: ${{ steps.major.outputs.version }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-      - name: Login
+      - name: Download the keyring for github cli
         run: |
-          gh auth login --with-token << _EOT_
-          ${{ secrets.MY_TOKEN }}
-          _EOT_
-        shell: bash
-      - id: cache
-        name: Restore the llvm source repository from cache
-        uses: actions/cache/restore@v4
-        with:
-          key: llvm-source-
-          path: llvm-project
-          restore-keys: llvm-source-*
+          aria2c -o /etc/apt/keyrings/ https://cli.github.com/packages/githubcli-archive-keyring.gpg
+          cat << _EOT_
+          Enabled: yes
+          Types: deb
+          URIs: https://cli.github.com/packages/
+          Suites: stable
+          Components: main
+          Signed-By: /etc/apt/keyrings/githubcli-archive-keyring.gpg
+          _EOT_ > /etc/apt/sources.list.d/github-cli.sources
       - env:
           DEBCONF_NOWARNINGS: yes
           DEBIAN_FRONTEND: noninteractive
@@ -35,6 +29,7 @@ jobs:
           apt-fast install \
               --no-install-recommends \
               --yes \
+            gh \
             git \
             libedit-dev \
             libxml2-dev \
@@ -54,6 +49,23 @@ jobs:
           break-system-packages = true
           _EOT_
           pip install cmake ninja
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - name: Login
+        run: |
+          gh auth login --with-token << _EOT_
+          ${{ secrets.MY_TOKEN }}
+          _EOT_
+        shell: bash
+      - id: cache
+        name: Restore the llvm source repository from cache
+        uses: actions/cache/restore@v4
+        with:
+          key: llvm-source-
+          path: llvm-project
+          restore-keys: llvm-source-*
       - name: Reset to ${{ needs.clang.outputs.commit-hash }}
         run: |
           cd llvm-project
