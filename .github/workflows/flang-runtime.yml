@@ -9,6 +9,16 @@ jobs:
       major-version: ${{ steps.major.outputs.version }}
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - name: Login
+        run: |
+          gh auth login --with-token << _EOT_
+          ${{ secrets.MY_TOKEN }}
+          _EOT_
+        shell: bash
       - id: cache
         name: Restore the llvm source repository from cache
         uses: actions/cache/restore@v4
