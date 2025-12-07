@@ -66,6 +66,10 @@ jobs:
           key: llvm-source-
           path: llvm-project
           restore-keys: llvm-source-*
+      - name: Configure git
+        run: |
+          cd llvm-project
+          git config --global --add safe.directory $(pwd)
       - name: Reset to ${{ needs.clang.outputs.commit-hash }}
         run: |
           cd llvm-project
