@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Download the keyring for github cli
         run: |
-          aria2c -o /etc/apt/keyrings/ https://cli.github.com/packages/githubcli-archive-keyring.gpg
+          aria2c -d /etc/apt/keyrings/ https://cli.github.com/packages/githubcli-archive-keyring.gpg
           cat << _EOT_
           Enabled: yes
           Types: deb
