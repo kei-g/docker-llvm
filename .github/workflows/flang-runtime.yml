@@ -98,7 +98,7 @@ jobs:
             -D LLVM_INSTALL_UTILS=OFF \
             -D LLVM_TARGETS_TO_BUILD=X86 \
             -G Ninja \
-            -S /llvm-project/llvm
+            -S ../llvm-project/llvm
       - name: Build
         run: |
           cd build
@@ -112,7 +112,7 @@ jobs:
         run: |
           echo version=$(
             grep -P '(?<=set\(LLVM_VERSION_MAJOR\s)[1-9][0-9]*' -o \
-              < /llvm-project/cmake/Modules/LLVMVersion.cmake
+              < llvm-project/cmake/Modules/LLVMVersion.cmake
           ) | tee -a $GITHUB_OUTPUT
       - name: Upload the runtime binary
         uses: actions/upload-artifact@v5
