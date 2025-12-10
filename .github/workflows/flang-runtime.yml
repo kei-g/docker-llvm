@@ -145,7 +145,7 @@ jobs:
       - name: Copy Dockerfile
         run: |
           sed -r 's/__BASE__/${{ needs.clang.outputs.distro-name }}-${{ needs.clang.outputs.datetime }}/g' \
-            < docker/build-flang-runtime/Dockerfile
+            < docker/build-flang-runtime/Dockerfile \
             > Dockerfile
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
