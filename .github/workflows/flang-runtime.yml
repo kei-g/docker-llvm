@@ -139,7 +139,7 @@ jobs:
         with:
           fetch-depth: 1
       - name: Download flang runtime
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: libflang_rt-${{ inputs.codename }}-${{ needs.clang.outputs.datetime }}-${{ needs.clang.outputs.commit-hash }}
       - name: Copy Dockerfile
