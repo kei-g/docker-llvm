@@ -40,7 +40,7 @@ jobs:
     steps:
       - id: previous
         name: Restore the repository from cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           key: llvm-source-
           path: llvm-project
@@ -71,7 +71,7 @@ jobs:
           echo key=llvm-source-$datetime >> $GITHUB_OUTPUT
       - if: ${{ steps.last-commit.outputs.key != steps.previous.outputs.cache-matched-key }}
         name: Save the repository to cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           key: ${{ steps.last-commit.outputs.key }}
           path: llvm-project

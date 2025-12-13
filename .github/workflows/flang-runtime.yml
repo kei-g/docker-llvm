@@ -61,7 +61,7 @@ jobs:
         shell: bash
       - id: cache
         name: Restore the llvm source repository from cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           key: llvm-source-
           path: llvm-project
