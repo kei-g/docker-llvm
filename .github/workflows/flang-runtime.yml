@@ -115,7 +115,7 @@ jobs:
               < llvm-project/cmake/Modules/LLVMVersion.cmake
           ) | tee -a $GITHUB_OUTPUT
       - name: Upload the runtime binary
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: libflang_rt-${{ inputs.codename }}-${{ needs.clang.outputs.datetime }}-${{ needs.clang.outputs.commit-hash }}
           path: |
