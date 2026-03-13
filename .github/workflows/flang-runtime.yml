@@ -156,7 +156,7 @@ jobs:
           username: ${{ inputs.DOCKERHUB_USERNAME }}
       - id: tags
         name: Decide tags
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ inputs.DOCKERHUB_USERNAME }}/llvm
           tags: |
