@@ -21,7 +21,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
       - id: build
         name: Build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           build-args: |
             MAJOR_VERSION=${{ needs.outdated.outputs.major-version }}
@@ -90,7 +90,7 @@ jobs:
             type=raw,value=${{ needs.outdated.outputs.distro-name }}-${{ needs.build.outputs.datetime }}
       - id: push
         name: Push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           build-args: |
             MAJOR_VERSION=${{ needs.outdated.outputs.major-version }}

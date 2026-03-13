@@ -164,7 +164,7 @@ jobs:
             type=raw,value=${{ needs.clang.outputs.distro-name }}-latest
             type=raw,value=${{ needs.clang.outputs.distro-name }}-${{ needs.clang.outputs.datetime }}
       - name: Run Buildx and Push it to DockerHub
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           build-args: |
             MAJOR_VERSION=${{ needs.build.outputs.major-version }}
