@@ -1,7 +1,8 @@
-ARG MAJOR_VERSION
-
 # Install the latest LLVM
 FROM snowstep/apt-fast:bullseye
+
+ARG MAJOR_VERSION
+ENV MAJOR_VERSION=${MAJOR_VERSION:-23}
 
 RUN DEBCONF_NOWARNINGS=yes \
   && DEBIAN_FRONTEND=noninteractive \
@@ -30,41 +31,41 @@ RUN DEBCONF_NOWARNINGS=yes \
     done > /etc/apt/sources.list.d/llvm-toolchain.list \
   && apt-fast update \
   && apt-fast install --no-install-recommends --yes \
-    clang-${MAJOR_VERSION:-22} \
-    clang-format-${MAJOR_VERSION:-22} \
-    clang-tidy-${MAJOR_VERSION:-22} \
-    clangd-${MAJOR_VERSION:-22} \
-    flang-${MAJOR_VERSION:-22} \
-    libc++-${MAJOR_VERSION:-22}-dev \
-    libc++abi-${MAJOR_VERSION:-22}-dev \
-    libclang-${MAJOR_VERSION:-22}-dev \
-    libclang-rt-${MAJOR_VERSION:-22}-dev \
-    libclc-${MAJOR_VERSION:-22}-dev \
-    libomp-${MAJOR_VERSION:-22}-dev \
-    libunwind-${MAJOR_VERSION:-22}-dev \
-    lld-${MAJOR_VERSION:-22} \
-    lldb-${MAJOR_VERSION:-22} \
-    llvm-${MAJOR_VERSION:-22} \
-    llvm-${MAJOR_VERSION:-22}-tools \
+    clang-${MAJOR_VERSION} \
+    clang-format-${MAJOR_VERSION} \
+    clang-tidy-${MAJOR_VERSION} \
+    clangd-${MAJOR_VERSION} \
+    flang-${MAJOR_VERSION} \
+    libc++-${MAJOR_VERSION}-dev \
+    libc++abi-${MAJOR_VERSION}-dev \
+    libclang-${MAJOR_VERSION}-dev \
+    libclang-rt-${MAJOR_VERSION}-dev \
+    libclc-${MAJOR_VERSION}-dev \
+    libomp-${MAJOR_VERSION}-dev \
+    libunwind-${MAJOR_VERSION}-dev \
+    lld-${MAJOR_VERSION} \
+    lldb-${MAJOR_VERSION} \
+    llvm-${MAJOR_VERSION} \
+    llvm-${MAJOR_VERSION}-tools \
   && find /usr/bin \
-    \( -name clang\*-${MAJOR_VERSION:-22} -o -name lld\*-${MAJOR_VERSION:-22} -o -name llvm\*-${MAJOR_VERSION:-22} \) \
+    \( -name clang\*-${MAJOR_VERSION} -o -name lld\*-${MAJOR_VERSION} -o -name llvm\*-${MAJOR_VERSION} \) \
     -exec bash -c '\
 i=1; \
 while [[ $i -lt $# ]]; do \
   eval name=\${$i##*/}; \
   eval name=\${name%\-*}; \
-  ln -fs $name-${MAJOR_VERSION:-22} /usr/bin/$name; \
+  ln -fs $name-${MAJOR_VERSION} /usr/bin/$name; \
   i=$((i + 1)); \
 done \
 ' -- {} + \
-  && grep -P '/bin/([^-]+-)+22$' /var/lib/dpkg/info/flang-22.list \
+  && grep -P "/bin/([^-]+-)+${MAJOR_VERSION}\$" /var/lib/dpkg/info/flang-${MAJOR_VERSION}.list \
     | while read -r full; do \
       dir=${full%/*}; \
       name=${full##*/}; \
       name=${name%\-*}; \
-      ln -fs $name-${MAJOR_VERSION:-22} $dir/$name; \
+      ln -fs $name-${MAJOR_VERSION} $dir/$name; \
     done \
   && apt clean --yes \
   && rm -fr /var/lib/apt/lists/* \
-  && echo /usr/lib/llvm-${MAJOR_VERSION:-22}/lib > /etc/ld.so.conf.d/llvm.conf \
+  && echo /usr/lib/llvm-${MAJOR_VERSION}/lib > /etc/ld.so.conf.d/llvm.conf \
   && ldconfig
