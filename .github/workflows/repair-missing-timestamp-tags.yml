@@ -1,0 +1,90 @@
+jobs:
+  repair:
+    name: Repair missing timestamp tags if necessary
+    runs-on: ubuntu-latest
+    steps:
+      - id: distro
+        uses: kei-g/github/debian/resolve-distro@main
+        with:
+          codename: ${{ matrix.codename }}
+      - id: latest
+        name: Get the latest digest
+        run: |
+          tags=https://hub.docker.com/v2/namespaces/${{ vars.DOCKERHUB_USERNAME }}/repositories/${{ matrix.image }}/tags
+          url=$tags/${{ steps.distro.outputs.long-name }}-latest
+          json=$(curl -s $url)
+          digest=$(jq -Mcr '.digest' <<< $json)
+          echo digest=$digest | tee -a $GITHUB_OUTPUT
+        shell: bash
+      - id: found
+        name: Find the image tag by ${{ steps.latest.outputs.digest }}
+        run: |
+          url=https://hub.docker.com/v2/namespaces/${{ vars.DOCKERHUB_USERNAME }}/repositories/${{ matrix.image }}/tags\?page=1\&page_size=100
+          while [[ $url != null ]]; do
+            json=$(curl -s $url)
+            datetime=$(
+              jq -Mcr \
+                  '.results[]|select(.digest=="${{ steps.latest.outputs.digest }}" and (.name|test("-[0-9]{14}$"))).name|split("-")|last' \
+                <<< $json
+            )
+            [[ -z $datetime ]] \
+              || {
+                echo "datetime=$datetime" \
+                  | tee -a $GITHUB_OUTPUT
+                break
+              }
+            url=$(jq -Mcr '.next' <<< $json)
+          done
+        shell: bash
+      - if: ${{ steps.found.outputs.datetime == null }}
+        name: Pull the latest image
+        run: |
+          docker pull ${{ vars.DOCKERHUB_USERNAME }}/llvm:${{ steps.distro.outputs.long-name }}-latest
+      - id: version
+        if: ${{ steps.found.outputs.datetime == null }}
+        name: Get the version detail of the latest image
+        run: |
+          version=$(
+            docker run \
+                    --rm \
+                    --tty \
+                  ${{ vars.DOCKERHUB_USERNAME }}/${{ matrix.image }}:${{ steps.distro.outputs.long-name }}-latest \
+                clang --version \
+              | grep -P '(?<=version\s).+$' -o
+          )
+          datetime=$(grep -P '(?<=\+\+)\d{14}' -o <<< $version)
+          echo ::group::output
+          {
+            echo commit-hash=$(grep -P '(?<=\d{14}\+)[\da-f]{11}' -o <<< $version)
+            echo datetime=$datetime
+            echo major-version=$(grep -P '^[1-9]\d*' -o <<< $version)
+            echo tag=${{ steps.distro.outputs.long-name }}-$datetime
+            echo value=$(grep -P '^[^\s]+' -o <<< $version)
+          } | tee -a $GITHUB_OUTPUT
+          echo ::endgroup::
+        shell: bash
+      - if: ${{ steps.found.outputs.datetime == null }}
+        name: Repair the tag, ${{ matrix.image }}:${{ steps.version.outputs.tag }}
+        run: |
+          docker tag \
+            ${{ vars.DOCKERHUB_USERNAME }}/${{ matrix.image }}:${{ steps.distro.outputs.long-name }}-latest \
+            ${{ vars.DOCKERHUB_USERNAME }}/${{ matrix.image }}:${{ steps.version.outputs.tag }}
+          docker push \
+            ${{ vars.DOCKERHUB_USERNAME }}/${{ matrix.image }}:${{ steps.version.outputs.tag }}
+    strategy:
+      matrix:
+        codename:
+          - bookworm
+          - bullseye
+          - focal
+          - jammy
+          - noble
+          - trixie
+        image:
+          - clang
+          - llvm
+name: Verify and Repair Docker Image Tag Consistency
+on:
+  schedule:
+    - cron: "59 2,14 * * *"
+  workflow_dispatch:
