@@ -12,14 +12,14 @@ jobs:
       - name: Download the keyring for github cli
         run: |
           aria2c -d /etc/apt/keyrings https://cli.github.com/packages/githubcli-archive-keyring.gpg
-          cat << _EOT_
+          cat << _EOT_ > /etc/apt/sources.list.d/github-cli.sources
           Enabled: yes
           Types: deb
           URIs: https://cli.github.com/packages/
           Suites: stable
           Components: main
           Signed-By: /etc/apt/keyrings/githubcli-archive-keyring.gpg
-          _EOT_ > /etc/apt/sources.list.d/github-cli.sources
+          _EOT_
       - env:
           DEBCONF_NOWARNINGS: yes
           DEBIAN_FRONTEND: noninteractive
