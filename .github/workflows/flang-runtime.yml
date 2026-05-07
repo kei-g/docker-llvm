@@ -1,7 +1,7 @@
 jobs:
   build:
     container: ${{ needs.clang.outputs.container }}
-    if: ${{ needs.clang.outputs.outdated == 'true' && needs.flang_runtime.outputs.path != 'null' }}
+    if: ${{ needs.clang.outputs.outdated == 'true' && needs.flang_runtime.outputs.path != null }}
     name: Build flang runtime
     needs:
       - clang
@@ -143,10 +143,10 @@ jobs:
           echo path=$(
             find / -name '*flang_rt*' \
               | head -n1 \
-            || echo null
+            || :
           ) | tee -a $GITHUB_OUTPUT
   install:
-    if: ${{ needs.clang.outputs.outdated == 'true' && needs.flang_runtime.outputs.path != 'null' }}
+    if: ${{ needs.clang.outputs.outdated == 'true' && needs.flang_runtime.outputs.path != null }}
     name: Install flang runtime
     needs:
       - build
@@ -193,7 +193,7 @@ jobs:
           tags: |
             ${{ steps.tags.outputs.tags }}
   skip_building:
-    if: ${{ needs.clang.outputs.outdated == 'true' && needs.flang_runtime.outputs.path == 'null' }}
+    if: ${{ needs.clang.outputs.outdated == 'true' && needs.flang_runtime.outputs.path == null }}
     name: Push only tags without building the flang runtime
     needs:
       - clang
