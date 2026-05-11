@@ -61,64 +61,32 @@ jobs:
     needs:
       - distro
     outputs:
-      datetime: ${{ fromJSON(steps.latest.outputs.llvm).datetime }}
-      digest: ${{ fromJSON(steps.latest.outputs.llvm).digest }}
-      outdated: ${{ steps.outdated.outputs.value }}
+      datetime: ${{ steps.latest.outputs.datetime }}
     runs-on: ubuntu-latest
     steps:
       - id: latest
         name: Get the latest docker image
         run: |
-          repo=https://hub.docker.com/v2/namespaces/${{ inputs.DOCKERHUB_USERNAME }}/repositories
-          for name in apt-fast llvm; do
-            tags=$repo/$name/tags
-            url=$tags/${{ needs.distro.outputs.long-name }}-latest
-            echo ::group::$name
+          tags=https://hub.docker.com/v2/namespaces/${{ inputs.DOCKERHUB_USERNAME }}/repositories/llvm/tags
+          url=$tags/${{ needs.distro.outputs.long-name }}-latest
+          json=$(curl -s $url)
+          digest=$(jq -Mcr '.digest' <<< $json)
+          echo digest=$digest
+          url=$tags\?page=1\&page_size=100
+          while [[ $url != null ]]; do
             json=$(curl -s $url)
-            digest=$(jq -Mcr '.digest' <<< $json)
-            url=$tags\?page=1\&page_size=100
-            while [[ $url != null ]]; do
-              json=$(curl -s $url)
-              datetime=$(
-                jq -Mcr \
-                    ".results[]|select(.digest==\"$digest\" and (.name|test(\"-[0-9]{14}$\"))).name|split(\"-\")|last" \
-                  <<< $json
-              )
-              [[ -z $datetime ]] \
-                || {
-                  echo "$name={\"datetime\": $datetime, \"digest\": \"$digest\" }" \
-                    | tee -a $GITHUB_OUTPUT
-                  break
-                }
-              url=$(jq -Mcr '.next' <<< $json)
-            done
-            echo ::endgroup::
+            datetime=$(
+              jq -Mcr \
+                  ".results[]|select(.digest==\"$digest\" and (.name|test(\"-[0-9]{14}$\"))).name|split(\"-\")|last" \
+                <<< $json
+            )
+            [[ -z $datetime ]] \
+              || {
+                echo datetime=$datetime | tee -a $GITHUB_OUTPUT
+                break
+              }
+            url=$(jq -Mcr '.next' <<< $json)
           done
-        shell: bash
-      - env:
-          NOT_UPDATED_SINCE: |
-            {
-              "bookworm": 20251015112211,
-              "bullseye": 20250809111900,
-              "focal": 20251014052939,
-              "jammy": 20251015042503
-            }
-        id: outdated
-        name: Check whether if outdated
-        run: |
-          not_updated_since=$(
-            jq -Mcr '.${{ inputs.codename }}' \
-              <<< $NOT_UPDATED_SINCE
-          )
-          case $not_updated_since in
-            null)
-                echo value=${{ fromJSON(steps.latest.outputs.apt-fast).datetime > fromJSON(steps.latest.outputs.llvm).datetime }}
-              ;;
-            *)
-                echo value=false
-              ;;
-          esac \
-            | tee -a $GITHUB_OUTPUT
         shell: bash
 name: Compare currently installed version with the latest LLVM
 on:
@@ -140,7 +108,7 @@ on:
       major-version:
         value: ${{ jobs.apt.outputs.major-version }}
       outdated:
-        value: ${{ jobs.apt.outputs.outdated == 'true' || jobs.dockerhub.outputs.outdated == 'true' }}
+        value: ${{ jobs.apt.outputs.outdated == 'true' }}
   workflow_dispatch:
     inputs:
       codename:
