@@ -12,7 +12,8 @@ jobs:
     steps:
       - name: Download the keyring for github cli
         run: |
-          aria2c -d /etc/apt/keyrings https://cli.github.com/packages/githubcli-archive-keyring.gpg
+          curl https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+            > /etc/apt/keyrings/githubcli-archive-keyring.gpg
           cat << _EOT_ > /etc/apt/sources.list.d/github-cli.sources
           Enabled: yes
           Types: deb
@@ -26,8 +27,8 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         name: Install `apt` packages
         run: |
-          apt-fast update
-          apt-fast install \
+          apt update
+          apt install \
               --no-install-recommends \
               --yes \
             gh \
