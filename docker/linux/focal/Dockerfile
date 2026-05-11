@@ -1,19 +1,23 @@
 # Install the latest LLVM
-FROM snowstep/apt-fast:focal
+FROM ubuntu:focal
 
 ARG MAJOR_VERSION
 ENV MAJOR_VERSION=${MAJOR_VERSION:-23}
 
 RUN DEBCONF_NOWARNINGS=yes \
   && DEBIAN_FRONTEND=noninteractive \
-  && apt-fast update \
-  && apt-fast upgrade --yes \
-  && apt-fast install --no-install-recommends --yes \
+  && apt update \
+  && apt upgrade --yes \
+  && apt install --no-install-recommends --yes \
+    ca-certificates \
+    curl \
     gnupg \
+    sudo \
+    tzdata \
   && keyname=llvm-snapshot.gpg \
   && keydir=/etc/apt/keyrings \
   && llvm=apt.llvm.org \
-  && aria2c https://$llvm/$keyname.key \
+  && curl https://$llvm/$keyname.key > $keyname.key \
   && gpg --import $keyname.key \
   && rm -f $keyname.key \
   && [ -d $keydir ] \
@@ -29,9 +33,9 @@ RUN DEBCONF_NOWARNINGS=yes \
           $codename \
           $codename; \
     done > /etc/apt/sources.list.d/llvm-toolchain.list \
-  && apt-fast update \
-  && apt-fast upgrade --yes \
-  && apt-fast install --no-install-recommends --yes \
+  && apt update \
+  && apt upgrade --yes \
+  && apt install --no-install-recommends --yes \
     clang-${MAJOR_VERSION} \
     clang-format-${MAJOR_VERSION} \
     clang-tidy-${MAJOR_VERSION} \
@@ -40,7 +44,7 @@ RUN DEBCONF_NOWARNINGS=yes \
     libunwind-${MAJOR_VERSION}-dev \
     lld-${MAJOR_VERSION} \
     lldb-${MAJOR_VERSION} \
-  && apt-fast install --no-install-recommends --yes \
+  && apt install --no-install-recommends --yes \
     libc++-${MAJOR_VERSION}-dev \
     libc++abi-${MAJOR_VERSION}-dev \
     libclang-${MAJOR_VERSION}-dev \
