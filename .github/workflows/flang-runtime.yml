@@ -124,6 +124,7 @@ jobs:
         with:
           name: libflang_rt-${{ inputs.codename }}-${{ needs.clang.outputs.datetime }}-${{ needs.clang.outputs.commit-hash }}
           path: |
+            /dist/lib/clang/${{ steps.major.outputs.version }}/finclude/
             /dist/lib/clang/${{ steps.major.outputs.version }}/lib/x86_64-unknown-linux-gnu/libflang_rt.runtime.a
   clang:
     secrets: inherit
