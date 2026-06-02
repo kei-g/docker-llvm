@@ -108,6 +108,9 @@ jobs:
         run: |
           cd build
           ninja install
+      - name: Test
+        run: |
+          flang examples/flang/hello-mods.F90
       - id: major
         name: Get major version
         run: |
