@@ -1,11 +1,10 @@
 jobs:
   build:
     container: ${{ needs.clang.outputs.container }}
-    if: ${{ needs.clang.outputs.outdated == 'true' && needs.flang_runtime.outputs.path == null }}
+    if: ${{ needs.clang.outputs.outdated == 'true' }}
     name: Build flang runtime
     needs:
       - clang
-      - flang_runtime
     outputs:
       major-version: ${{ steps.major.outputs.version }}
     runs-on: ubuntu-latest
@@ -128,31 +127,12 @@ jobs:
     with:
       DOCKERHUB_USERNAME: ${{ inputs.DOCKERHUB_USERNAME }}
       codename: ${{ inputs.codename }}
-  flang_runtime:
-    container: ${{ needs.clang.outputs.container }}
-    if: ${{ needs.clang.outputs.outdated == 'true' }}
-    name: Check the necessity to build libflang_runtime.a
-    needs:
-      - clang
-    outputs:
-      path: ${{ steps.file.outputs.path }}
-    runs-on: ubuntu-latest
-    steps:
-      - id: file
-        name: Does the file exist
-        run: |
-          echo path=$(
-            find / -name '*flang_rt*' \
-              | head -n1 \
-            || :
-          ) | tee -a $GITHUB_OUTPUT
   install:
-    if: ${{ needs.clang.outputs.outdated == 'true' && needs.flang_runtime.outputs.path == null }}
+    if: ${{ needs.clang.outputs.outdated == 'true' }}
     name: Install flang runtime
     needs:
       - build
       - clang
-      - flang_runtime
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -193,33 +173,6 @@ jobs:
           push: true
           tags: |
             ${{ steps.tags.outputs.tags }}
-  skip_building:
-    if: ${{ needs.clang.outputs.outdated == 'true' && needs.flang_runtime.outputs.path != null }}
-    name: Push only tags without building the flang runtime
-    needs:
-      - clang
-      - flang_runtime
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v4
-      - name: Login to DockerHub
-        uses: docker/login-action@v4
-        with:
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          username: ${{ inputs.DOCKERHUB_USERNAME }}
-      - name: Push tags
-        run: |
-          clang=${{ vars.DOCKERHUB_USERNAME }}/clang:${{ needs.clang.outputs.distro-name }}-latest
-          docker pull $clang
-          llvm=${{ vars.DOCKERHUB_USERNAME }}/llvm:${{ inputs.codename }}
-          docker tag $clang $llvm
-          docker push $llvm
-          for suffix in latest ${{ needs.clang.outputs.datetime }}; do
-            llvm=${{ vars.DOCKERHUB_USERNAME }}/llvm:${{ needs.clang.outputs.distro-name }}-$suffix
-            docker tag $clang $llvm
-            docker push $llvm
-          done
 name: flang runtime
 on:
   workflow_call:
