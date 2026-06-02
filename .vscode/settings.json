@@ -1,4 +1,23 @@
 {
+  "cSpell.allowCompoundWords": true,
+  "cSpell.caseSensitive": false,
+  "cSpell.userWords": [
+    "buildx",
+    "dockerhub",
+    "esac",
+    "flang",
+    "githubcli",
+    "imageid",
+    "jlumbroso",
+    "libcxx",
+    "libflang",
+    "libzstd",
+    "nowarnings",
+    "openmp",
+    "snowstep",
+    "trixie",
+    "zstd",
+  ],
   "files.associations": {
     "**/LICENSE": "plaintext",
   },

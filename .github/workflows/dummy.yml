@@ -1,0 +1,9 @@
+jobs:
+  dummy:
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: true
+name: Dummy
+on:
+  workflow_dispatch:

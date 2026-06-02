@@ -1,0 +1,82 @@
+jobs:
+  clean:
+    name: Cleanup
+    needs:
+      - update
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - name: Login
+        run: |
+          gh auth login --with-token << _EOT_
+          ${{ secrets.MY_TOKEN }}
+          _EOT_
+        shell: bash
+      - id: cache
+        name: List caches
+        run: |
+          echo list=$(
+            gh cache list \
+                --jq '.[]|select(.key|test("^llvm-source-[0-9]{14}$"))' \
+                --json id,key \
+              | jq -Mcr '.key' \
+              | tail -n+2
+          ) | tee -a $GITHUB_OUTPUT
+      - name: Delete caches
+        run: |
+          for key in ${{ steps.cache.outputs.list }}; do
+            echo Deleting $key...
+            gh cache delete $key
+          done
+      - name: Logout
+        run: |
+          gh auth logout
+  update:
+    name: Update
+    runs-on: ubuntu-latest
+    steps:
+      - id: previous
+        name: Restore the repository from cache
+        uses: actions/cache/restore@v5
+        with:
+          key: llvm-source-
+          path: llvm-project
+          restore-keys: llvm-source-*
+      - if: ${{ steps.previous.outputs.cache-matched-key == '' }}
+        name: Clone the repository if necessary
+        run: |
+          git clone --recursive https://github.com/llvm/llvm-project.git
+      - if: ${{ steps.previous.outputs.cache-matched-key != '' }}
+        name: Pull
+        run: |
+          cd llvm-project
+          echo ::group::git fetch >&2
+          git fetch --all --porcelain --progress --prune
+          echo ::endgroup:: >&2
+          echo ::group::git pull >&2
+          git pull --progress --rebase
+          echo ::endgroup:: >&2
+      - id: last-commit
+        name: Acquire the latest commit datetime
+        run: |
+          cd llvm-project
+          iso=$(git log --date=iso-local --format=%cd -1)
+          datetime=$(date --date="$iso" --utc '+%Y%m%d%H%M%S')
+          echo ::group::git log
+          echo "\"$iso\" => $datetime"
+          echo ::endgroup::
+          echo key=llvm-source-$datetime >> $GITHUB_OUTPUT
+      - if: ${{ steps.last-commit.outputs.key != steps.previous.outputs.cache-matched-key }}
+        name: Save the repository to cache
+        uses: actions/cache/save@v5
+        with:
+          key: ${{ steps.last-commit.outputs.key }}
+          path: llvm-project
+name: LLVM source
+on:
+  schedule:
+    - cron: '31 0,6,12,18 * * *'
+  workflow_dispatch:
