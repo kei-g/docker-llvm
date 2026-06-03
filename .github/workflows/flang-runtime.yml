@@ -137,7 +137,7 @@ jobs:
       - build
       - clang
     outputs:
-      digest: ${{ steps.published.outputs.digest }}
+      container: ${{ inputs.DOCKERHUB_USERNAME }}/llvm@${{ steps.published.outputs.digest }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -181,7 +181,7 @@ jobs:
             ${{ steps.tags.outputs.tags }}
   test:
     if: ${{ needs.clang.outputs.outdated == 'true' }}
-    container: ${{ needs.install.outputs.digest }}
+    container: ${{ needs.install.outputs.container }}
     name: Test
     needs:
       - install
