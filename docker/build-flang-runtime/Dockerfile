@@ -1,3 +1,4 @@
 FROM snowstep/clang:__BASE__
 
-COPY libflang_rt.runtime.a /usr/lib/x86_64-linux-gnu/
+COPY finclude /usr/lib/clang/23/
+COPY lib /usr/lib/clang/23/
