@@ -150,7 +150,7 @@ jobs:
           name: libflang_rt-${{ inputs.codename }}-${{ needs.clang.outputs.datetime }}-${{ needs.clang.outputs.commit-hash }}
       - name: Copy Dockerfile
         run: |
-          sed -r 's/__BASE__/${{ needs.clang.outputs.distro-name }}-${{ needs.clang.outputs.datetime }}/g' \
+          sed -r 's/__BASE__/${{ needs.clang.outputs.distro-name }}-${{ needs.clang.outputs.datetime }}/g; s/__MAJOR_VERSION__/${{ needs.build.outputs.major-version }}/g' \
             < docker/build-flang-runtime/Dockerfile \
             > Dockerfile
       - name: Setup Docker Buildx
