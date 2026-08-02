@@ -1,7 +1,7 @@
 FROM snowstep/clang:__BASE__
 
 RUN cd /usr/lib/llvm-__MAJOR_VERSION__/lib/clang/__MAJOR_VERSION__ \
-  && mkdir finclude lib/x86_64-unknown-linux-gnu
+  && mkdir -p finclude lib/x86_64-unknown-linux-gnu
 
 COPY bin/ /usr/lib/llvm-__MAJOR_VERSION__/bin/
 COPY lib/ /usr/lib/llvm-__MAJOR_VERSION__/lib/
