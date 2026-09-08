@@ -20,8 +20,7 @@ RUN DEBCONF_NOWARNINGS=yes \
   && curl https://$llvm/$keyname.key > $keyname.key \
   && gpg --import $keyname.key \
   && rm -f $keyname.key \
-  && [ -d $keydir ] \
-    || mkdir -pv $keydir \
+  && mkdir -pv $keydir \
   && gpg --export > $keydir/$keyname \
   && codename=$(grep -P '(?<=VERSION_CODENAME=).+$' -o < /etc/os-release) \
   && for what in deb deb-src; do \
