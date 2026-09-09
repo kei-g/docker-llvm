@@ -6,6 +6,7 @@ ENV MAJOR_VERSION=${MAJOR_VERSION:-23}
 
 RUN DEBCONF_NOWARNINGS=yes \
   && DEBIAN_FRONTEND=noninteractive \
+  && sed -i 's/deb.debian.org/archive.debian.org/g; s#security.debian.org/debian-security#archive.debian.org/debian-security#g; /bullseye-updates/d' /etc/apt/sources.list \
   && apt -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=false update \
   && apt upgrade --yes \
   && apt install --no-install-recommends --yes \
