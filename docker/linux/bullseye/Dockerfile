@@ -1,28 +1,26 @@
 # Install the latest LLVM
-FROM debian:bullseye
+FROM debian:bullseye-20250428
 
 ARG MAJOR_VERSION
 ENV MAJOR_VERSION=${MAJOR_VERSION:-23}
 
 RUN DEBCONF_NOWARNINGS=yes \
   && DEBIAN_FRONTEND=noninteractive \
-  && sed -i 's/deb.debian.org/archive.debian.org/g; s#security.debian.org/debian-security#archive.debian.org/debian-security#g; /bullseye-updates/d' /etc/apt/sources.list \
+  && sed -i '/bullseye-security/d' /etc/apt/sources.list \
+  && sed -i -r 's/(deb|security)\.debian\.org/archive.debian.org/g' /etc/apt/sources.list \
   && apt -o Acquire::Check-Valid-Until=false -o Acquire::Check-Date=false update \
   && apt upgrade --yes \
   && apt install --no-install-recommends --yes \
     ca-certificates \
     curl \
-    gnupg \
+    gpg \
     sudo \
     tzdata \
   && keyname=llvm-snapshot.gpg \
   && keydir=/etc/apt/keyrings \
   && llvm=apt.llvm.org \
-  && curl https://$llvm/$keyname.key > $keyname.key \
-  && gpg --import $keyname.key \
-  && rm -f $keyname.key \
   && mkdir -pv $keydir \
-  && gpg --export > $keydir/$keyname \
+  && curl -s https://$llvm/$keyname.key | gpg --dearmor > $keydir/$keyname \
   && codename=$(grep -P '(?<=VERSION_CODENAME=).+$' -o < /etc/os-release) \
   && for what in deb deb-src; do \
       printf \
